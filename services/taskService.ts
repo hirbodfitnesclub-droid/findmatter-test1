@@ -5,17 +5,18 @@ import { Task } from '../types';
 type TaskInsert = Omit<Task, 'id' | 'user_id' | 'created_at' | 'updated_at' | 'status' | 'completed_at'>;
 type TaskUpdate = Partial<Omit<Task, 'id' | 'user_id' | 'created_at' | 'updated_at'>>;
 
-export const getTasks = async (): Promise<Task[]> => {
+export const getTasks = async (limit: number = 20): Promise<Task[]> => {
   const { data, error } = await supabase
     .from('tasks')
-    .select('*')
-    .order('created_at', { ascending: false });
+    .select('id, user_id, project_id, title, description, status, priority, due_date, completed_at, tags, checklist, created_at, updated_at')
+    .order('created_at', { ascending: false })
+    .range(0, limit - 1);
 
   if (error) throw error;
   return data as Task[];
 };
 
-export const createTask = async (task: TaskInsert): Promise<Task> => {
+export const createTask = async (task: TaskInsert & { id?: string }, id?: string): Promise<Task> => {
   // Use the RPC we defined in SQL with checklist support
   const rpcParams = {
     p_title: task.title,
@@ -24,7 +25,8 @@ export const createTask = async (task: TaskInsert): Promise<Task> => {
     p_due_date: task.due_date || null,
     p_priority: task.priority || 'medium',
     p_tags: task.tags || [],
-    p_checklist: task.checklist || [] // mapped as jsonb atomically
+    p_checklist: task.checklist || [], // mapped as jsonb atomically
+    p_id: id || task.id || null
   };
 
   const { data, error } = await supabase

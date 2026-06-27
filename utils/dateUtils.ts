@@ -1,5 +1,5 @@
 
-import jalaali from 'https://esm.sh/jalaali-js';
+import * as jalaali from 'https://esm.sh/jalaali-js@1.2.6';
 
 export const persianMonths = [
   'فروردین', 'اردیبهشت', 'خرداد', 'تیر', 'مرداد', 'شهریور',

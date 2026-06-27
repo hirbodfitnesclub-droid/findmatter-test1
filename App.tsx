@@ -1,32 +1,59 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, lazy, Suspense } from 'react';
 import { Page, Task, Note, Project, Habit, ActionResult } from './types';
 import BottomNav from './components/BottomNav';
 import Dashboard from './features/dashboard/Dashboard';
 import TasksView from './features/tasks/TasksView';
 import NotesView from './features/notes/NotesView';
-import ChatView from './features/chat/ChatView';
-import ProjectsView from './features/projects/ProjectsView';
-import { SubscriptionPage } from './features/billing/pages/SubscriptionPage';
+
+
+// Lazy loaded heavy views
+const ChatView = lazy(() => import('./features/chat/ChatView'));
+const ProjectsView = lazy(() => import('./features/projects/ProjectsView'));
+const SubscriptionPage = lazy(() => import('./features/billing/pages/SubscriptionPage').then(module => ({ default: module.SubscriptionPage })));
+
+const LoadingSpinner: React.FC = () => (
+  <div className="flex items-center justify-center h-full min-h-[200px]" id="suspense-loader">
+    <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
+  </div>
+);
+
 import { RenewReminderModal } from './features/billing/components/RenewReminderModal';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import AuthComponent from './components/Auth';
 import { DataProvider, useData } from './contexts/DataContext';
 import { useRealtimeSync } from './hooks/useRealtimeSync';
 import { supabase } from './services/supabaseClient';
+import { useReminderScheduler } from './hooks/useReminderScheduler';
+import { requestNotificationPermission, subscribeToPush, saveSubscription } from './services/reminderService';
 
 // Import components
+import Sidebar from './components/Sidebar';
+import ProfileModal from './components/ProfileModal';
 import TaskEditorModal from './features/tasks/components/TaskEditorModal';
 import NoteEditorModal from './features/notes/components/NoteEditorModal';
-import { HabitEditorModal } from './features/habits/components/HabitEditorModal';
+import { HabitManagerModal } from './features/habits/components/HabitManagerModal';
 import { PaywallModal } from './components/PaywallModal';
-import { Onboarding } from './components/Onboarding';
+import { Onboarding } from './features/onboarding/Onboarding';
 import { NetworkBanner } from './components/NetworkBanner';
 import { ToastNotifications } from './components/ui/ToastNotifications';
 import * as billingService from './services/billingService';
+import { AnnouncementManager } from './features/announcements/AnnouncementManager';
 
 const MainApp: React.FC = () => {
-  const { user } = useAuth();
+  const { user, signOut } = useAuth();
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
+
+  useEffect(() => {
+    const handleOpenProfile = () => setIsProfileOpen(true);
+    window.addEventListener('hexer:open-profile', handleOpenProfile);
+    return () => window.removeEventListener('hexer:open-profile', handleOpenProfile);
+  }, []);
+
+  const handleTriggerUpgrade = () => {
+    setPaywallMessage('جهت دسترسی نامحدود به دستیار هوشمند و قابلیت‌های مدیریت پروژه، طرح خود را ارتقا دهید.');
+    setShowPaywall(true);
+  };
   
   const {
     currentPage,
@@ -74,7 +101,8 @@ const MainApp: React.FC = () => {
     updateHabit,
     deleteHabit,
     toggleHabitCompletion,
-    injectAIProposalResult
+    injectAIProposalResult,
+    setEntityLinks
   } = useData();
 
   // Global Modals State
@@ -89,8 +117,42 @@ const MainApp: React.FC = () => {
     setTasks,
     setNotes,
     setHabits,
+    setEntityLinks,
     addNotification
   });
+
+  // Activate Foreground Tasks/Nudges scheduler
+  useReminderScheduler();
+
+  // Natural moment setup: Ask for notification permission and subscribe to Web Push (Layer B)
+  useEffect(() => {
+    if (!user) return;
+
+    let timeoutId: number;
+
+    const setupPushManager = async () => {
+      try {
+        const { pruneShown } = await import('./services/reminderService');
+        // Clean cached notification IDs older than 48 hours is done in background
+        pruneShown().catch(err => console.warn('[DB] Failed to prune shown alerts:', err));
+
+        const vapidKey = import.meta.env.VITE_VAPID_PUBLIC_KEY;
+        if (!vapidKey) {
+          console.warn('[Push] VITE_VAPID_PUBLIC_KEY is not defined. Bypassing background push setup.');
+          return;
+        }
+        // به هیچ وجه در اینجا requestNotificationPermission یا subscribeToPush را صدا نزن.
+        // این کار بعداً با کلیک صریح کاربر (در تسک H11) انجام خواهد شد.
+      } catch (err) {
+        console.warn('[Push] Setup degraded gracefully:', err);
+      }
+    };
+
+    // Deliberate delay of 3 seconds after load to feel natural to the user
+    timeoutId = window.setTimeout(setupPushManager, 3000);
+
+    return () => clearTimeout(timeoutId);
+  }, [user]);
 
   // --- Payment Redirect and Verification Handler ---
   useEffect(() => {
@@ -138,20 +200,18 @@ const MainApp: React.FC = () => {
 
   const handleSaveModalTask = (taskToSave: Task | Partial<Task>) => {
     if ('id' in taskToSave && taskToSave.id) {
-      updateTask(taskToSave);
+      return updateTask(taskToSave);
     } else {
-      addTask(taskToSave as any);
+      return addTask(taskToSave as any);
     }
-    setEditingTask(null);
   };
 
   const handleSaveModalNote = (noteToSave: Note | Partial<Note>) => {
     if ('id' in noteToSave && noteToSave.id) {
-      updateNote(noteToSave);
+      return updateNote(noteToSave);
     } else {
-      addNote(noteToSave as any);
+      return addNote(noteToSave as any);
     }
-    setEditingNote(null);
   };
 
   const handleSaveModalHabit = (habitToSave: Habit | Partial<Habit>) => {
@@ -167,7 +227,7 @@ const MainApp: React.FC = () => {
     if (loadingData) {
       return (
         <div className="flex items-center justify-center h-full" id="inner-loader">
-          <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-sky-500"></div>
+          <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-primary"></div>
         </div>
       );
     }
@@ -183,12 +243,10 @@ const MainApp: React.FC = () => {
             editHabit={setEditingHabit}
             subscription={subscription}
             profile={profile}
-            onTriggerUpgrade={() => {
-              setPaywallMessage('جهت دسترسی نامحدود به دستیار هوشمند و قابلیت‌های مدیریت پروژه، طرح خود را ارتقا دهید.');
-              setShowPaywall(true);
-            }}
+            onTriggerUpgrade={handleTriggerUpgrade}
           />
         );
+      case Page.PageContainer:
       case Page.Tasks:
         return (
           <TasksView 
@@ -206,19 +264,25 @@ const MainApp: React.FC = () => {
         );
       case Page.Projects:
         return (
-          <ProjectsView />
+          <Suspense fallback={<LoadingSpinner />}>
+            <ProjectsView />
+          </Suspense>
         );
       case Page.Subscription:
         return (
-          <SubscriptionPage />
+          <Suspense fallback={<LoadingSpinner />}>
+            <SubscriptionPage />
+          </Suspense>
         );
       case Page.Chat:
         return (
-          <ChatView 
-            onEditTask={handleEditTask} 
-            onEditNote={handleEditNote} 
-            onEditProject={handleEditProject} 
-          />
+          <Suspense fallback={<LoadingSpinner />}>
+            <ChatView 
+              onEditTask={handleEditTask} 
+              onEditNote={handleEditNote} 
+              onEditProject={handleEditProject} 
+            />
+          </Suspense>
         );
       default:
         return (
@@ -230,10 +294,7 @@ const MainApp: React.FC = () => {
             editHabit={setEditingHabit}
             subscription={subscription}
             profile={profile}
-            onTriggerUpgrade={() => {
-              setPaywallMessage('جهت دسترسی نامحدود به دستیار هوشمند و قابلیت‌های مدیریت پروژه، طرح خود را ارتقا دهید.');
-              setShowPaywall(true);
-            }}
+            onTriggerUpgrade={handleTriggerUpgrade}
           />
         );
     }
@@ -254,15 +315,29 @@ const MainApp: React.FC = () => {
   }
 
   return (
-    <div className="relative flex flex-col h-[100dvh]" id="main-app-container">
-      <NetworkBanner />
-      <main className="flex-1 overflow-y-auto overflow-x-hidden pb-24" id="view-viewport">
-        {renderContent()}
-      </main>
+    <div className="relative flex h-[100dvh] bg-[var(--bg-base)] text-main" id="main-app-container">
+      <Sidebar currentPage={currentPage} setPage={setCurrentPage} onOpenProfile={() => setIsProfileOpen(true)} className="hidden lg:flex shrink-0" />
+      <div className="flex-1 flex flex-col min-w-0">
+        <NetworkBanner />
+        <main className="flex-1 overflow-y-auto overflow-x-hidden pb-bottom-nav lg:pb-6" id="view-viewport">
+          {renderContent()}
+        </main>
+      </div>
       <ToastNotifications notifications={notifications} onRemove={removeNotification} />
-      <BottomNav currentPage={currentPage} setPage={setCurrentPage} />
+      <div className="lg:hidden">
+        <BottomNav currentPage={currentPage} setPage={setCurrentPage} />
+      </div>
       
-      {/* Global Modals triggered from Chat & Lists */}
+      {/* Global Modals triggered from Chat, Sidebar & Lists */}
+      <ProfileModal
+        isOpen={isProfileOpen}
+        onClose={() => setIsProfileOpen(false)}
+        user={user}
+        signOut={signOut}
+        subscription={subscription}
+        profile={profile}
+        onTriggerUpgrade={handleTriggerUpgrade}
+      />
       {editingTask && (
         <TaskEditorModal 
           isOpen={!!editingTask} task={editingTask} 
@@ -278,7 +353,7 @@ const MainApp: React.FC = () => {
         />
       )}
       {editingHabit && (
-        <HabitEditorModal
+        <HabitManagerModal
           isOpen={!!editingHabit} habit={editingHabit}
           onClose={() => setEditingHabit(null)} onSave={handleSaveModalHabit} onDelete={deleteHabit}
         />
@@ -294,6 +369,9 @@ const MainApp: React.FC = () => {
 
       {/* Renew Subscription Smart Reminder Alert */}
       <RenewReminderModal />
+
+      {/* Announcements Temporary Modals System */}
+      <AnnouncementManager />
     </div>
   );
 };
@@ -304,7 +382,7 @@ const AppContent: React.FC = () => {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-[100dvh]" id="main-loader">
-        <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-sky-500"></div>
+        <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-primary"></div>
       </div>
     );
   }
@@ -320,7 +398,8 @@ const AppContent: React.FC = () => {
 
 const App: React.FC = () => {
   return (
-    <div className="bg-gray-950 min-h-screen text-white" style={{ fontFamily: "'Vazirmatn', sans-serif" }} id="app-root">
+    <div className="min-h-screen text-main" style={{ fontFamily: "'Vazirmatn', sans-serif" }} id="app-root">
+      <div className="bg-nature" />
       <AuthProvider>
         <AppContent />
       </AuthProvider>
