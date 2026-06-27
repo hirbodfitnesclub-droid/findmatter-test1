@@ -1,561 +1,446 @@
-# ARCHITECTURE.md — نقشه‌ی مهندسی این ریفکتور (Hexer AI)
+# ARCHITECTURE.md — نقشه‌ی مهندسی فاز L2 (Visual Overhaul)
 
-> این سند «چه چیزی» و «چرا»ی ریفکتور جاری را تعریف می‌کند؛ «چگونگیِ» گام‌به‌گام در `tasks.md` (R1–R10).
-> اصول حاکم (که از قبل پیاده شده‌اند و دست‌نخورده می‌مانند): **Server-Authoritative** (منطق پولی/مصرفی/امنیتی سمت سرور)، **RLS-First** (هر جدول قفل روی `auth.uid()=user_id`)، **Atomic via RPC** (نوشتن چندمرحله‌ای فقط در دیتابیس).
+> این سند «چه چیزی» و «چرایی» فاز L2 را تعریف می‌کند؛ «چگونگی» گام‌به‌گام در `tasks.md` (L2-1 تا L2-N).
+> اصول حاکم (که از قبل پیاده شده‌اند و دست‌نخورده می‌مانند): **Server-Authoritative**، **RLS-First**، **Atomic via RPC**.
 
 ---
 
 ## ۱. وضعیت موجود (Snapshot — برای زمینه، نه برای تغییر)
-> این بخش فقط برای آگاهی کدنویس است. این موارد **ساخته‌شده‌اند** و در این ریفکتور بازنویسی نمی‌شوند مگر صریحاً در یک تسک گفته شود.
 
-- **جداول موجود (همه با `user_id` + RLS):** `profiles`, `plans`, `subscriptions`, `usage_counters`, `ai_requests_log`, `projects`, `tasks`, `notes`, `habits`, `habit_completions`, `reminders`, `media_assets`.
-- **جداول مالی و ادمین:** `discount_codes` (با فیلد `is_active`) و `payments` (که از طریق `discount_code_id` به کدهای تخفیف متصل است). جداول ادمین معمولاً توسط کلاینت اصلی فقط خوانده/استفاده میشوند و مدیریت آنها سمت داشبورد ادمین است.
-- **RPC های موجود:** `handle_new_user`(تریگر ساخت اتمیک profile+subscription+usage)، `create_task_with_tags`، `create_note_with_tags`، `match_documents`(جستجوی برداری user-scoped)، `consume_ai_quota`(گیت اتمیک سهمیه، خروجی `{allowed, model, remaining, reason}`)، `activate_subscription`، `enqueue_vectorize`(تریگر `pg_net` روی tasks/notes).
-- **توابع لبه‌ی موجود:** `ai-assistant`(مسیر بدون Base64، مدیا از Storage با Service Role)، `vectorize`(امبدینگ ۷۶۸)، `zibal-request`, `zibal-verify`.
-- **Storage:** باکت‌های Private `chat-media` و `avatars` با ساختار مسیر `{user_id}/...`.
-- **env هدف:** کلاینت `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` · توابع `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `GEMINI_API_KEY`, `ZIBAL_MERCHANT`, `ZIBAL_CALLBACK_URL`.
-- **توابع ابری (Edge Functions) و امنیت:** علاوه بر توابع AI کاربر، یک تابع به نام `admin-api` وجود دارد که از طریق کلید `service_role` (بایپس کامل RLS) و احراز هویت سفارشی (هدر `x-admin-secret`) با دیتابیس ارتباط برقرار میکند. قوانین RLS موجود روی جداول نباید به گونهای تغییر کنند که عملکرد این Gateway ادمین را مختل کنند.
+> این بخش فقط برای آگاهی کدنویس است. این موارد ساخته‌شده‌اند و در این فاز بازنویسی نمی‌شوند مگر صریحاً در یک تسک گفته شود.
 
-> فایل‌های SQL موجود با پیشوند `00`–`12` هستند. **فایل‌های جدیدِ این ریفکتور با پیشوند `20`+ ساخته می‌شوند تا تداخل نکنند.**
+### ۱.۱. ساختار فعلی فرانت‌اند
 
----
+- **`App.tsx`** (ورودی اصلی): مدیریت Page routing، رندر `BottomNav`، lazy-load صفحات سنگین (`ChatView`, `ProjectsView`, `SubscriptionPage`)، مودال‌های سراسری (`TaskEditorModal`, `NoteEditorModal`, `HabitManagerModal`, `PaywallModal`, `ProfileModal`)، `NetworkBanner`، `ToastNotifications`. کانتینر ریشه: `bg-gray-950 min-h-screen text-white` با `h-[100dvh]`.
+- **`contexts/`**: `AuthContext` (احراز هویت Supabase) و `DataContext` (دسترسی سراسری به داده از طریق `useDataManager`).
+- **`hooks/`**: `useDataManager` (CRUD کامل + استیت)، `useOfflineSync`، `useRealtimeSync`، `useReminderScheduler`، `useNetworkStatus`.
+- **`services/`**: لایه‌ی ارتباط با Supabase و Gemini. تغییر ساختاری ممنوع.
+- **`components/`**: کامپوننت‌های مشترک (`BottomNav`, `Modal`, `icons`, `NetworkBanner`, `ToastNotifications`, `ProfileModal`, `PaywallModal`, `Auth`).
+- **`features/`**: ساختار feature-based برای dashboard، tasks، notes، projects، chat، habits، billing، onboarding، announcements.
 
-## ۲. افزوده‌های اسکیما (Schema Δ)
-> فایل جدید `supabase/sql/20_refactor_schema.sql` (Idempotent). همه‌ی جداول جدید: `user_id` + RLS پایه `auth.uid() = user_id`.
+### ۱.۲. ساختار فعلی داشبورد (`features/dashboard/`)
 
-### ۲.۱. اصلاح `profiles` (رفع باگ Onboarding)
-دو ستونِ گم‌شده که فرم Onboarding جمع می‌کند ولی جایی برای ذخیره ندارد:
-| ستون | نوع | توضیح |
-|------|-----|------|
-| specialty | text null | تخصص کاربر (مرحله‌ی ۲ Onboarding) |
-| interests | text[] default '{}' | علایق (مرحله‌ی ۳ Onboarding) |
+| فایل | نقش | کلاس‌های پایه‌ی فعلی | نکات حیاتی |
+|------|------|----------------------|-------------|
+| `Dashboard.tsx` | ارکستراسیون: هدر + grid ۵ ستونی + مودال‌ها | `pb-2` → `px-4 sm:px-6 max-w-7xl mx-auto space-y-6 pt-5` | استیت `isProfileOpen`, `isReportOpen`؛ محاسبه `selectedDayProgressStats` |
+| `DashboardHeader.tsx` | هدر چسبان موبایل با رینگ پیشرفت | `bg-gray-950/80 backdrop-blur-xl border-b border-white/10 pt-safe` | **قانون طلایی: ساختار حفظ شود، فقط استایل آپدیت شود**؛ props: `onOpenProfile`, `todayProgress`, `hasTasksToday` |
+| `WeekCalendar.tsx` | تقویم هفته‌ی جاری | روز فعال: `bg-gradient-to-br from-indigo-500 to-purple-600` | props: `selectedDate`, `onDateChange`؛ استفاده از `toJalaali`, `persianMonths` |
+| `TodaysPlan.tsx` | لیست کارهای امروز | `WidgetContainer` + checkbox `bg-sky-500 border-sky-400` | `toggleTaskCompletion`؛ sort: done → آخر |
+| `TodaysNotes.tsx` | یادداشت‌های امروز | `bg-black/30 backdrop-blur-xl border border-white/5 rounded-2xl` | فیلتر با `isSameTehranDay` — مستقل از WidgetContainer |
+| `QuickCapture.tsx` | ورودی سریع | `WidgetContainer` + textarea `bg-gray-800/70` + دکمه `bg-sky-600/80` و `bg-purple-600/80` | `addTask`, `addNote`؛ استیت `input` |
+| `StatsOverview.tsx` | ۴ کارت آمار + دکمه‌ی گزارش | `WidgetContainer` + StatCard `bg-gray-800/70 border border-white/5` + دکمه `bg-zinc-850/40` | `onOpenWeeklyReport` باید به `WeeklyReportModal` متصل شود |
+| `HabitTracker.tsx` | ردیاب عادت‌ها | `WidgetContainer` + checkbox `bg-green-500 border-green-400` + دکمه `bg-orange-600/20` | `toggleHabitCompletion`, `editHabit` |
+| `KeyProjects.tsx` | پروژه‌های اولویت‌بالا | `WidgetContainer` + progress bar `bg-gray-700/50` + `getColorClass()` | فیلتر `Priority.High` |
+| `WeeklyReportModal.tsx` | مودال گزارش هفتگی | `bg-zinc-950/90 border-t sm:border border-white/10 rounded-t-[2.5rem]` | استیت `activeTab`؛ محاسبه `weekBoundaries`؛ motion/react |
+| `WidgetContainer.tsx` | wrapper پایه‌ی ویجت‌ها | `bg-gray-900/50 backdrop-blur-xl border border-white/10 rounded-2xl p-4 sm:p-5 shadow-2xl shadow-black/30` | فقط `children` + `className` + `id` |
 
-### ۲.۲. لینک دوطرفه — `task_note_links`
-جدول واسط که از هر دو سمت کوئری می‌شود.
-| ستون | نوع | توضیح |
-|------|-----|------|
-| id | uuid PK | |
-| user_id | uuid not null FK→auth.users | RLS |
-| task_id | uuid not null FK→tasks `on delete cascade` | |
-| note_id | uuid not null FK→notes `on delete cascade` | |
-| created_at | timestamptz default now() | |
-- `UNIQUE(task_id, note_id)` برای جلوگیری از لینک تکراری؛ ایندکس روی `(user_id)`, `(task_id)`, `(note_id)`.
+### ۱.۳. استایل سراسری فعلی (`index.css`)
 
-### ۲.۳. تاریخچه‌ی چت — `chat_sessions` + `chat_messages`
-چت از حالت ephemeral (state در `App.tsx`) به **پایدار، روزانه، با نگه‌داری یک‌ماهه** منتقل می‌شود.
+- متغیرهای `safe-area-inset` (top/bottom) — **حیاتی برای iOS**.
+- کلاس‌های `.pt-safe`, `.pb-safe`, `.pb-safe-content`, `.pb-bottom-nav`, `.bottom-nav-inset`, `.pb-safe-lg`, `.safe-spacer-bottom`.
+- هک‌های `-webkit-overflow-scrolling: touch`، `overscroll-behavior: contain`، `-webkit-text-size-adjust: 100%`.
+- هک autofill برای فیلدهای فرم.
+- **هیچ توکن رنگی وجود ندارد.** همه‌ی رنگ‌ها هاردکد شده در کلاس‌های Tailwind کامپوننت‌ها.
+- **همه‌ی این موارد باید دست‌نخورده بمانند.**
 
-**`chat_sessions`** — یک ردیف به‌ازای هر روزِ کاربر: `id`, `user_id`, `session_date date`(به وقت Asia/Tehran), `created_at`. با `UNIQUE(user_id, session_date)`.
+### ۱.۴. `index.html` فعلی
 
-**`chat_messages`** — پیام‌های هر نشست:
-| ستون | نوع | توضیح |
-|------|-----|------|
-| id | uuid PK | |
-| user_id | uuid not null FK | RLS |
-| session_id | uuid not null FK→chat_sessions `on delete cascade` | |
-| sender | text check in ('user','ai') | |
-| text | text | |
-| mode | text null | auto/action/memory |
-| citations | jsonb default '[]' | منابع RAG |
-| action_results | jsonb default '[]' | آیتم‌های ساخته/پیشنهادشده |
-| created_at | timestamptz default now() | ایندکس `(user_id, session_id, created_at)` |
+- Tailwind CDN (`cdn.tailwindcss.com`).
+- فونت Vazirmatn از Google Fonts.
+- `theme-color` meta = `#09090b`.
+- importmap برای React/Vite/Supabase.
+- **هیچ اسکریپت تشخیص تم وجود ندارد.**
 
-- **روز جاری vs تاریخچه:** نشستِ `session_date = today(Asia/Tehran)` قابل ادامه است؛ نشست‌های قدیمی‌تر **فقط-خواندنی** (کلاینت ارسال را غیرفعال می‌کند).
-- **نگه‌داری یک‌ماهه:** ترجیحاً job شبانه با `pg_cron`: حذف نشست‌های قدیمی‌تر از ۳۰ روز (پیام‌ها با cascade). اگر `pg_cron` در دسترس نبود، **fallback** حذف تنبل داخل RPC `get_chat_sessions`.
+### ۱.۵. سایر صفحات (فاز دوم)
 
-### ۲.۴. ایندکس‌های متنی برای RAG هیبریدی
-افزونه‌ی **`pg_trgm`** + ایندکس GIN تری‌گرم روی `tasks.title/description` و `notes.title/content` (full-text فارسی در Postgres ضعیف است؛ trigram انتخاب درست برای جستجوی کلیدواژه‌ای فازی فارسی است).
-
----
-
-## ۳. افزوده‌های RPC (RPC Δ)
-> فایل جدید `supabase/sql/21_refactor_functions.sql`. همه user-scoped و Idempotent.
-
-| تابع | مسئولیت |
-|------|---------|
-| `link_task_note(p_task_id, p_note_id)` | لینک اتمیک دوطرفه، `user_id := auth.uid()`، Idempotent (تکرار خطا نمی‌دهد) |
-| `unlink_task_note(p_task_id, p_note_id)` | حذف لینک، فقط برای صاحب |
-| `get_linked_notes(p_task_id)` / `get_linked_tasks(p_note_id)` | برگرداندن آیتم‌های لینک‌شده (user-scoped) |
-| `hybrid_search(p_query_embedding vector(768), p_query_text text, p_match_count int)` | **قلب RAG:** ترکیب امتیاز cosine (vector) و `similarity()` تری‌گرم با **Reciprocal Rank Fusion**؛ خروجی `(id, type, title, snippet, score)`؛ **اجباراً `where user_id = auth.uid()`** |
-| `get_usage_status()` | خواندن وضعیت مصرف **بدون** افزایش شمارنده: `(plan_code, display_name, monthly_quota, request_count, remaining, period_start, period_end, expires_at)` |
-| `get_daily_usage(p_days int)` | تجمیع `ai_requests_log` بر اساس روز (Asia/Tehran) برای نمودار مصرف |
-| `get_or_create_today_session()` | برگرداندن/ساختِ اتمیک نشست چت امروز بر اساس Asia/Tehran |
-| `get_chat_sessions(p_limit int)` | لیست نشست‌های یک‌ماه اخیر؛ در نبود pg_cron، حذف تنبل نشست‌های قدیمی‌تر از ۳۰ روز |
-
-> `consume_ai_quota` دست نمی‌خورد؛ `get_usage_status` فقط برای **نمایش** است و نباید شمارنده را تغییر دهد.
+| صفحه | فایل اصلی | رنگ‌های فعلی که باید جایگزین شوند |
+|------|-----------|----------------------------------|
+| تسک‌ها | `features/tasks/TasksView.tsx` | `bg-sky-500/10 border-sky-500/20 text-sky-400`, `text-zinc-500`, `bg-zinc-900`, `border-zinc-800` |
+| کارت تسک | `features/tasks/components/TaskCard.tsx` | `bg-sky-500 border-sky-500`, `bg-zinc-900/60 border-white/5`, `text-zinc-200`, `text-zinc-500` |
+| یادداشت‌ها | `features/notes/NotesView.tsx` | `bg-zinc-950`, `from-purple-600 to-fuchsia-600`, `bg-zinc-900 border-zinc-800` |
+| کارت یادداشت | `features/notes/components/NoteCard.tsx` | `bg-zinc-900 border-white/5`, `from-purple-500/20 to-fuchsia-600/20` |
+| پروژه‌ها | `features/projects/ProjectsView.tsx` | `bg-slate-950`, `bg-sky-600`, `from-white via-indigo-200 to-sky-300` |
+| کارت پروژه | `features/projects/components/ProjectCard.tsx` | `bg-zinc-900/60 border-white/5`, `colorClasses` و `priorityClasses` با sky/red/green/yellow/purple |
+| چت AI | `features/chat/ChatView.tsx` | `bg-sky-600`, `bg-gray-800/50`, `text-sky-400`, `ring-sky-400/50` |
+| نوار پایین | `components/BottomNav.tsx` | `bg-gray-900/70 backdrop-blur-xl border-white/10`, `from-sky-500 to-fuchsia-500`, `text-sky-400`, `text-gray-500` |
+| نوار کناری | `components/Sidebar.tsx` | **خالی (۰ بایت)** — باید ساخته شود |
+| Auth | `components/Auth.tsx` | `bg-gray-950`, `text-sky-400`, `bg-sky-600` |
+| ProfileModal | `components/ProfileModal.tsx` | `bg-gray-900 border-white/10`, `text-sky-400` |
+| PaywallModal | `components/PaywallModal.tsx` | `bg-gray-900 border-white/10`, `bg-sky-600` |
 
 ---
 
-## ۴. ارتقای جریان هوش مصنوعی (AI Flow)
+## ۲. معماری فاز L2 — ریدیزاین داشبورد (فاز اول)
 
+### ۲.۱. استراتژی کلی
 
-markdown## ۴. معماری ریفکتورشده‌ی هوش مصنوعی (Phase D — Backend Stability)
+تمام کامپوننت‌های زنده از تم تیره‌ی هاردکد شده استفاده می‌کنند. هدف: جایگزینی تمام رنگ‌های هاردکد با توکن‌های CSS Variable که در `index.css` تعریف می‌شوند، و افزودن چیدمان دسکتاپ سه‌ستونه.
 
-### ۴.۰. ریشه‌های بحران (مرجع تاریخی)
+**رویکرد:** «توکن جایگزین هاردکد» — هر کلاس رنگی هاردکد شده (مثل `bg-gray-900/50`) با کلاس توکنی معادل (مثل `glass-card`) جایگزین می‌شود. هیچ کدی از فایل ماکت استاتیک کپی نمی‌شود. تمام دستورالعمل‌ها در `tasks.md` به صورت دقیق «کلاس X را حذف کن، کلاس Y را اضافه کن» مشخص شده‌اند.
 
-| رتبه | مشکل | اثر مستقیم |
-|------|------|------------|
-| 🔴 | **تناقض مدل Embedding** — `vectorize` از `text-embedding-004` و `ai-assistant` از `gemini-embedding-2-preview` استفاده می‌کردند | بردارهای ذخیره‌شده و بردار کوئری در فضاهای متفاوت؛ cosine similarity بی‌معنی؛ RAG هرگز کار نمی‌کند |
-| 🔴 | **God File بدون مرز خطا** — ۶۰۰ خط در یک تابع؛ خرابی هر بخش کل درخواست را با ۵۰۰ می‌کشد | ناپایداری مزمن و غیرقابل دیباگ |
-| 🟠 | **تایم‌اوت تجمعی** — Storage + Embedding + Search + Generation + Actions همه سریالی‌وار در یک تابع ۶۰ثانیه‌ای | ۵۰۴ Timeout روی درخواست‌های پیچیده |
+> ### ⚠️ بازنگری بنیادین معماری L2 (Hardening Pass)
+> این بخش پس از کالبدشکافیِ کاملِ کد اضافه شده و **بر هر تصمیم متناقضِ قبلی در این سند ارجح است**. خلاصه‌ی ۴ تصمیمِ کلیدیِ معماری که سرچشمه‌ی بیشتر باگ‌ها بود:
+>
+> 1. **تک‌منبع کردن پس‌زمینه + حذف تصویر خارجی (رفع «پس‌زمینه‌ی نامرئی»):** ماکت از `--bg-image: url(unsplash...)` و یک `div.bg-nature` با `z-index:-1` استفاده می‌کرد. این برای یک PWAی Offline-First **ریسک پروداکشن** است (در آفلاین/۴۰۴ تصویر بارگذاری نمی‌شود و کارت‌های گلسِ نیمه‌شفاف بی‌پس‌زمینه و ناخوانا می‌شوند). علاوه بر این، نقشه‌ی قبلی `div.bg-nature` را **هم در `App.tsx` و هم در `Dashboard.tsx`** رندر می‌کرد (Double Background). **تصمیم نهایی:** پس‌زمینه‌ی پایه توکن‌محور و خوداتکا است (`--bg-base`، سالید/گرادیان CSS، طبق `DesignSystem.md`)، و **دقیقاً یک‌بار** در ریشه‌ی `App.tsx` اعمال می‌شود (نه در Dashboard). کلاس `.bg-nature` دیگر به تصویر خارجی وابسته نیست (به `--bg-base` نگاشت می‌شود).
+> 2. **تثبیت استراتژی دارک‌مود کلاس‌محور (رفع «عدم تطابق توکن Tailwind با CSS»):** Tailwind Play-CDN به‌صورت پیش‌فرض `darkMode: 'media'` است، یعنی utilityهای `dark:` به `prefers-color-scheme`ی سیستم‌عامل گوش می‌دهند، نه به کلاس `.dark`ی که toggle تم روی `<html>` می‌گذارد. نتیجه: تمِ split-brain (متغیرهای CSS با toggle عوض می‌شوند ولی `dark:`های Tailwind با سیستم‌عامل). **تصمیم نهایی:** افزودن `tailwind.config = { darkMode: 'class' }` به‌صورت inline در `index.html` بلافاصله بعد از اسکریپت CDN (تسک L2-2). تنها سلکتور تم `.dark` است (`data-theme` حذف می‌شود تا سطح کاهش یابد).
+> 3. **هک Autofill توکن‌محور (رفع باگ Autofill):** هک فعلی `#09090b` را هاردکد می‌کند که در لایت‌مود (فیلد سفید) جعبه‌ی تقریباً مشکی با متن سفید می‌سازد و فیلد را خراب می‌کند. نقشه‌ی قبلی (L2-27) می‌خواست قانون را «داخل `:root`» بگذارد که از نظر CSS بی‌معناست (`:root` خودِ html است، نه wrapper). **تصمیم نهایی:** دو توکن `--autofill-bg` و `--autofill-text` تعریف و در یک قانونِ واحدِ autofill با `var()` استفاده می‌شوند؛ مقادیر در `:root`/`.dark` تغییر می‌کنند.
+> 4. **حذف Prop Drilling در ناوبری (رفع باگ سایدبار):** `Sidebar` و هر کامپوننتِ ناوبری، `currentPage`/`setCurrentPage` را **مستقیماً از `useData()`** می‌گیرند (این مقادیر در `DataContext` موجودند). از `Dashboard` فقط `onOpenProfile` به‌عنوان prop پاس می‌شود (یک نگرانیِ UIِ محلی، قابل قبول).
+>
+> **هم‌چنین — نگاشت توکن‌ها (تک منبع حقیقت):** نام توکن‌ها بین `DesignSystem.md` (مفهومی: `--bg-base`, `--bg-surface`, `--text-primary`, `--text-secondary`) و ماکت/پیاده‌سازی (`--bg-card`, `--text-main`, `--text-muted`) متفاوت بود. برای پرهیز از over-engineering و ریپلِ گسترده، **نام‌های پیاده‌سازی (ماکت) به‌عنوان مجموعه‌ی کانونی** انتخاب می‌شوند (چون جدول جایگزینی §۲.۵ و هر ۲۷ تسک از همین نام‌ها استفاده می‌کنند و مقادیرشان با DesignSystem یکی است)؛ تنها استثناء: `--bg-image` با `--bg-base` جایگزین می‌شود. نگاشت کامل در §۹.
 
----
+### ۲.۲. ساختار چیدمان دسکتاپ — سایدبارِ گلوبال در App + گرید واحدِ داشبورد
 
-### ۴.۱. ساختار ماژولار هدف
-supabase/functions/
-├── shared/                           ← ابزارهای مشترک (import با path نسبی)
-│   ├── cors.ts                        ← corsHeaders constant
-│   ├── auth-guard.ts                  ← getAuthUser(authHeader) → {user, client} | throw
-│   └── gemini-client.ts               ← EMBEDDING_MODEL constant + factory + generateEmbedding()
-│
-├── ai-assistant/
-│   ├── index.ts                       ← فقط Orchestrator (هدف: <۱۲۰ خط)
-│   └── lib/
-│       ├── media-handler.ts           ← Storage download → InlineData part
-│       ├── rag-context.ts             ← Embedding query + hybrid_search + context string
-│       ├── meta-context.ts            ← Tasks/Notes/Projects DB fetch → context string
-│       ├── action-processor.ts        ← اجرای CREATE* و SUGGEST_LINK
-│       └── system-prompt.ts           ← ساخت system prompt (pure function)
-│
-└── vectorize/
-└── index.ts                       ← اصلاح مدل به EMBEDDING_MODEL از _shared
+> ### ⛔️ اصلاح بحرانی: تله‌ی ناوبری دسکتاپ (Sidebar حتماً Global)
+> نسخه‌ی قبلیِ این سند `<Sidebar/>` را **داخل `Dashboard.tsx`** می‌گذاشت. این یک باگِ مرگبارِ پروداکشن است: `App.tsx` با تغییر `currentPage` کلِ `Dashboard` را Unmount می‌کند؛ پس وقتی کاربرِ دسکتاپ روی «کارها/یادداشت‌ها/پروژه‌ها» می‌رود، سایدبار **ناپدید** می‌شود و چون `BottomNav` هم در دسکتاپ `lg:hidden` است، کاربر **بدون هیچ راهِ ناوبری حبس** می‌شود.
+>
+> **تصمیم نهایی:** سایدبارِ دسکتاپ یک المانِ **Global و دائمی** در `App.tsx` است (کنار `<main>`)، خارج از `renderContent()`/صفحات. روی همه‌ی صفحات می‌ماند و هرگز Unmount نمی‌شود. `Dashboard.tsx` دیگر `Sidebar` را رندر نمی‌کند و گریدِ آن **دوستونه** می‌شود (سایدبار از بیرون می‌آید).
 
----
-
-### ۴.۲. قانون ثبات مدل Embedding (Critical Rule)
-
-**یک ثابت، دو مصرف‌کننده — هیچ هاردکد ممنوع:**
-
-```typescript
-// _shared/gemini-client.ts
-export const EMBEDDING_MODEL = 'text-embedding-004';
-```
-
-- `ai-assistant/lib/rag-context.ts` → import از `../../_shared/gemini-client.ts`
-- `vectorize/index.ts` → import از `../_shared/gemini-client.ts`
-- هرگز نام مدل داخل هیچ فایلی هاردکد نمی‌شود
-
----
-
-### ۴.۳. قرارداد رفتار خطا (Error Contract)
-
-| ماژول | خطا → رفتار |
-|-------|------------|
-| `media-handler.ts` | دانلود ناموفق → **throw** (درخواست مدیا بدون مدیا بی‌معنی است) |
-| `rag-context.ts` | Embedding یا Search ناموفق → **return `{contextString: '', citations: []}`** (graceful fallback) |
-| `meta-context.ts` | DB query ناموفق → **return `""`** (context کاهش می‌یابد نه خرابی کل) |
-| `action-processor.ts` | یک اکشن ناموفق → **log + skip** (اکشن‌های دیگر ادامه می‌یابند) |
-| `index.ts` | خرابی Gemini generation → **۵۰۰** (قابل retry توسط frontend) |
-
----
-
-### ۴.۴. جریان داده‌ی بازطراحی‌شده
-Request
-│
-├─[1] Auth Guard ──────────────────────────────── throw 401 on fail
-├─[2] Quota Check ─────────────────────────────── return 402 on exceed
-├─[3] Media Download (if audio/image) ────────── throw 500 on fail
-│
-├─[4] Context Building (Promise.all) ─────────── always resolves (fallback to "")
-│      ├─ RAG Context (Embedding → hybrid_search)
-│      └─ Meta Context (Tasks + Notes + Projects)
-│
-├─[5] System Prompt Build (pure function) ────── no side effects
-├─[6] Gemini Generate ────────────────────────── throw 500 on fail
-├─[7] Action Processing (per-action isolation) ─ partial failure OK
-│
-└─[8] Response
-
----
-
-### ۴.۵. قرارداد API (بدون تغییر — backward compatible)
-
-```json
-{
-  "reply": "string",
-  "citations": "[{id, type, title, similarity}]",
-  "actionResults": "[{type, operation, data}]",
-  "proposals": "[{kind, draft, confidence}]",
-  "transcription": "string"
-}
-```
-
-فرانت‌اند هیچ تغییری نمی‌بیند.
----
-
-## ۵. معماری State و ساختار فرانت‌اند
-
-### ۵.۱. لایه‌ی داده (پایان God File و Prop Drilling)
-- **`hooks/useDataManager.ts` (پیاده‌سازی واقعی):** مالک state و CRUD همه‌ی entityها (tasks, notes, projects, habits, subscription, usage). شامل: واکشی **صفحه‌بندی‌شده** (`loadInitial(range)` + `loadMore`) به‌جای `Promise.all` انبوه؛ همه‌ی handlerهای `add/update/delete/toggle` (با همان منطق Optimistic + race-guard فعلی)؛ `injectActionResult` برای خروجی AI.
-- **`contexts/DataContext.tsx` (جدید):** خروجی `useDataManager` را Provide می‌کند؛ هر feature با `useData()` مصرف می‌کند.
-- **`hooks/useRealtimeSync.ts` (جدید):** ۶ کانال Realtime (همه با `filter: user_id=eq.<uid>`) از `App.tsx` خارج و متمرکز؛ dependency فقط `user.id`.
-- **State محلی به‌جای گلوبال:** `selectedDate`→Dashboard؛ `chatMessages`→ChatView (از DB)؛ `editingProject`→ProjectsView.
-
-### ۵.۲. درخت فایلِ هدف (Feature-Based)
-> این درخت **مقصد مهاجرت** است (پروژه از قبل موجود است). قانون مهاجرت: ابتدا usage جابه‌جا/به‌روز، بعد importِ بلااستفاده حذف شود.
-```
-/
-├── App.tsx                 ← فقط Providers (Auth + Data) + Routing + Global Modals (هدف <۱۰۰ خط)
-├── types.ts                ← + EntityLink, ChatSession, ChatMessage, ExtractionProposal, UsageStatus(extended)
-│
-├── features/
-│   ├── auth/        (Auth.tsx, Onboarding.tsx)
-│   ├── dashboard/   (Dashboard.tsx + components/{DashboardHeader,WeekCalendar,TodaysPlan,TodaysNotes,QuickCapture,StatsOverview,HabitTracker,KeyProjects}.tsx)
-│   ├── tasks/       (TasksView.tsx, TaskCard.tsx, TaskEditorModal.tsx, components/LinkNotePicker.tsx, hooks/useGroupedTasks.ts)
-│   ├── notes/       (NotesView.tsx, NoteCard.tsx, NoteEditorModal.tsx, components/LinkTaskPicker.tsx)
-│   ├── projects/    (ProjectsView.tsx, ProjectCard.tsx, ProjectDetailsModal.tsx, utils/projectStats.ts)
-│   ├── habits/      (HabitEditorModal.tsx)
-│   ├── chat/        (ChatView.tsx, components/{CitationCard,ActionResultCard,ModeChip,ProposalCard,ChatHistoryDrawer}.tsx, hooks/useMediaRecorder.ts)
-│   └── billing/     (PaywallModal.tsx, ProfileModal.tsx, SubscriptionPage.tsx, RenewReminderModal.tsx, UsageMeter.tsx)
-│
-├── components/
-│   ├── ui/          (Modal.tsx, NetworkBanner.tsx, ToastNotifications.tsx)
-│   ├── forms/       (PersianDatePicker.tsx, TimePicker.tsx)
-│   ├── layout/      (BottomNav.tsx)
-│   └── icons/       (index.ts)
-│
-├── contexts/        (AuthContext.tsx, DataContext.tsx[جدید])
-├── hooks/           (useNetworkStatus.ts, useDataManager.ts[پیاده‌سازی], useRealtimeSync.ts[جدید])
-├── services/        (geminiService به‌عنوان تنها لایه‌ی AI؛ حذف triggerVectorization از task/noteService)
-└── utils/           (dateUtils.ts, imageUtils.ts[جدید], taskGrouping.ts[جدید])
-```
-
----
-
-## ۶. رجیستر باگ‌های UI/UX (مرجع تسک‌های فرانت)
-> اولویت 🔴 بحرانی / 🟠 مهم / 🟡 متوسط. هر مورد در تسک فاز C مربوطه رفع می‌شود.
-
-| # | فایل | باگ | رفع |
-|---|------|-----|-----|
-| 🔴 | services/supabaseClient.ts | کلید/URL هاردکد | فقط `VITE_*` با fallback ایمن |
-| 🔴 | ChatView | حباب RTL برعکس | کاربر→`rounded-tr-none`، AI→`rounded-tl-none` |
-| 🔴 | TasksView | دکمه‌ی حذف فقط-hover | همیشه قابل‌دسترس در موبایل |
-| 🔴 | ProfileModal | کلاس نامعتبر `w-18` | سایز معتبر (`w-20`) |
-| 🔴 | Onboarding | عدم ذخیره‌ی specialty/interests + type mismatch | ذخیره در `profiles` (§۲.۱)، هندلر `MouseEvent` صحیح |
-| 🟠 | PersianDatePicker | کلاس نامعتبر `direction-rtl` | `dir="rtl"` |
-| 🟠 | ProjectsView | انیمیشن مودال اجرا نمی‌شود + dead code (`handleUpdateNote`) | mount/unmount صحیح، حذف کد مرده |
-| 🟠 | ChatView | input بدون `dir="rtl"` + Mode Chips سرریز | `dir="rtl"` + `flex-wrap` |
-| 🟠 | Task/NoteEditorModal | کیبورد مجازی محتوا را می‌پوشاند | `dvh`/`100dvh` و اسکرول ایمن |
-| 🟠 | Dashboard | scrollbar RTL (`pr-2`) + `todaysProgressStats` مستقل از `selectedDate` | `pl-2` + افزودن `selectedDate` به منطق/deps |
-| 🟡 | Dashboard | باگ timezone (UTC vs local با `startsWith`) | `dateUtils` با Asia/Tehran |
-| 🟡 | Dashboard | WeekCalendar سرریز ۳۲۰px + hit-area پروگرس‌رینگ کوچک | `min-w-0`/truncation + افزایش ناحیه‌ی کلیک |
-| 🟡 | Auth | Native validation انگلیسی | `noValidate` + اعتبارسنجی دستی فارسی |
-| 🟡 | PaywallModal | چینش روی صفحه‌ی کوتاه (iPhone SE) | چینش امن |
-| 🟡 | ChatView | `compressImage` بدون try/catch | try/catch + پیام فارسی |
-| 🟡 | TaskEditorModal | edge case `hasTime` (پیش‌فرض ظهر) | تمایز «بدون ساعت» از «ساعت ۱۲» |
-| 🟡 | App | `removeNotification` بدون useCallback | پایداری closure |
-
-
-
-
----
-
-## ۷. معماری UI — استانداردها و قراردادها
-
-### ۷.۱. جدول رنگ‌های معتبر Tailwind (سریع‌مرجع)
-
-| مقدار نامعتبر | جایگزین صحیح | توضیح |
-|---|---|---|
-| `zinc-850`, `zinc-855` | `zinc-900` | کمی تیره‌تر از 800 |
-| `zinc-750` | `zinc-800` | بین 700 و 800 |
-| `zinc-650` | `zinc-600` | ← از این استفاده کن |
-| `zinc-550` | `zinc-500` | |
-| `zinc-450` | `zinc-400` | |
-| `zinc-350` | `zinc-300` | |
-| `neutral-850` | `neutral-900` | |
-| `red-650` | `red-600` | |
-| `purple-650` | `purple-600` | |
-| `z-15` | `z-10` یا `z-20` | |
-| `z-45` | `z-40` یا `z-50` | |
-
-### ۷.۲. سلسله مراتب Z-Index (قرارداد پروژه)
-
-| لایه | مقدار | کامپوننت |
-|---|---|---|
-| Content | default | همه المان‌های عادی |
-| Bottom Nav | `z-50` | BottomNav |
-| Modals (سطح ۱) | `z-[60]` | TaskEditor, NoteEditor, HabitEditor |
-| Modals (سطح ۲) | `z-[70]` | ProjectDetailsModal |
-| Critical Modals | `z-[90]` | ProfileModal |
-| Full-Screen Overlays | `z-[100]` | PaywallModal, RenewReminderModal |
-| Toast/Alerts | `z-[100]` | ToastNotifications |
-| Network Banner | `z-[9999]` | NetworkBanner |
-
-> قانون: هر مودالی که Modal دیگری را cover می‌کند باید z-index بالاتری داشته باشد.
-
-### ۷.۳. الگوی استاندارد مودال برای Mobile
-
-مودال‌هایی که از پایین باز می‌شوند باید این ساختار را دقیقاً رعایت کنند:
-
+**ساختار صحیح در `App.tsx` (لِی‌اوتِ ریشه — Shell سراسری):**
 ```jsx
-{/* Backdrop */}
+// MainApp
+<div className="relative flex h-[100dvh]" id="main-app-container">
+  <div className="bg-nature" />            {/* تنها لایه‌ی پس‌زمینه، گلوبال */}
 
-  
-  {/* Modal Sheet */}
-  <div className="flex flex-col w-full max-w-xl
-                  h-[100dvh]           {/* ارتفاع کامل viewport داینامیک */}
-                  rounded-t-3xl        {/* فقط بالا گرد */}
-                  overflow-hidden"     {/* clip محتوا */}
-       onClick={e => e.stopPropagation()}>
-    
-    {/* Header — ثابت، shrink نمی‌شود */}
-    
-      {/* عنوان + دکمه بستن */}
-    
-    
-    {/* Content — اسکرول‌پذیر، min-h-0 حیاتی است */}
-    
-      {/* محتوای فرم */}
-    
-    
-    {/* Footer — ثابت، shrink نمی‌شود، pb-safe برای notch */}
-    
-      {/* دکمه‌های ذخیره/انصراف */}
-    
-  
+  {/* سایدبارِ دسکتاپ — گلوبال، دائمی، روی همه‌ی صفحات */}
+  <Sidebar currentPage={currentPage} setPage={setCurrentPage} onOpenProfile={() => setIsProfileOpen(true)} className="hidden lg:flex shrink-0" />
 
+  {/* ستون محتوا */}
+  <div className="flex-1 flex flex-col min-w-0">
+    <NetworkBanner />
+    <main className="flex-1 overflow-y-auto overflow-x-hidden pb-bottom-nav lg:pb-6" id="view-viewport">
+      {renderContent()}
+    </main>
+  </div>
+
+  <ToastNotifications ... />
+  <div className="lg:hidden"><BottomNav ... /></div>   {/* فقط موبایل */}
+
+  {/* مودال‌های گلوبال — شامل ProfileModal (منتقل‌شده از Dashboard) */}
+  <ProfileModal isOpen={isProfileOpen} onClose={() => setIsProfileOpen(false)} ... />
+  <TaskEditorModal ... /> <NoteEditorModal ... /> ...
+</div>
 ```
 
-**چرا `min-h-0` حیاتی است:**  
-در `flex-col`، فرزندان flex به صورت پیش‌فرض `min-height: auto` دارند یعنی نمی‌توانند از محتوایشان کوچک‌تر شوند. بدون `min-h-0` روی بخش محتوا، وقتی کیبورد باز می‌شود و viewport کوچک می‌شود، فوتر از صفحه خارج می‌شود.
+**ساختار صحیح در `Dashboard.tsx` (فقط محتوای داشبورد — دوستونه):**
+```jsx
+<div className="pb-2">
+  {/* هدر موبایل — فقط موبایل. دکمه‌ی پروفایل از طریق CustomEvent باز می‌شود (پایین). */}
+  <div className="lg:hidden">
+    <DashboardHeader onOpenProfile={() => window.dispatchEvent(new CustomEvent('hexer:open-profile'))} ... />
+  </div>
 
-**چرا `h-[100dvh]` درست است:**  
-واحد `dvh` (Dynamic Viewport Height) در مرورگرهای مدرن به کیبورد واکنش نشان می‌دهد — برخلاف `vh` که ثابت است. این باعث می‌شود مودال با باز شدن کیبورد جمع شود و footer همیشه قابل دسترس بماند.
+  <div className="px-4 sm:px-6 max-w-[1280px] mx-auto pt-5 space-y-6">
+    {/* گریدِ داشبورد: موبایل ۱ ستون، دسکتاپ ۲ ستون (سایدبار از App می‌آید، نه اینجا) */}
+    <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-4 lg:gap-6">
 
-### ۷.۴. Autofill Override (باید در index.css باشد)
+      {/* ستون مرکز فرمان */}
+      <div className="space-y-6 min-w-0">
+        <QuickCapture />
+        <ProductivityChart />     {/* L2-14: Presentational با داده‌ی واقعیِ tasks */}
+        <TodaysPlan />
+      </div>
+
+      {/* ستون بافتار داده */}
+      <div className="space-y-6 min-w-0">
+        <StatsOverview onOpenWeeklyReport={() => setIsReportOpen(true)} />
+        <WeekCalendar selectedDate={selectedDate} onDateChange={setSelectedDate} />
+        <KeyProjects />
+        <FocusTimer />            {/* L2-15: پومودوروی کلاینت با state محلی + setInterval */}
+      </div>
+    </div>
+  </div>
+
+  <WeeklyReportModal isOpen={isReportOpen} onClose={() => setIsReportOpen(false)} />
+  {/* ProfileModal دیگر اینجا نیست — به App منتقل شد */}
+</div>
+```
+
+**مکانیزمِ بازکردنِ پروفایل بدون Prop Drilling/Duplicate:**
+- `ProfileModal` به‌صورت **گلوبال در `App.tsx`** رندر می‌شود (state `isProfileOpen` در `MainApp`) — هم‌سو با بقیه‌ی مودال‌های گلوبال.
+- سایدبارِ دسکتاپ (در App): مستقیماً `onOpenProfile={() => setIsProfileOpen(true)}`.
+- هدر موبایل (در Dashboard): `window.dispatchEvent(new CustomEvent('hexer:open-profile'))`؛ `App.tsx` با `addEventListener('hexer:open-profile', ...)` آن را باز می‌کند. این دقیقاً هم‌الگوی رویدادِ موجودِ `navigate_to_subscription` در `App.tsx` است (بدون تغییرِ hook/context، بدون درَیل).
+
+**قانون حیاتی — ممنوعیت Duplicate Mounting (بدون تغییر):**
+- هر کامپوننت دقیقاً **یک بار** در درخت JSX نوشته شود؛ ساختِ دو کانتینرِ مجزای موبایل/دسکتاپ ممنوع.
+- چیدمان فقط با گریدِ ریسپانسیو و wrapperهای `hidden lg:flex` / `lg:hidden` کنترل شود.
+- `bg-nature` فقط یک‌بار (در App).
+
+> **تصمیمِ نهاییِ پروداکت (TodaysNotes & HabitTracker):** این دو ویجت در ماکت نیستند و در طرحِ جدید لازم نیستند. از درختِ رندرِ `Dashboard.tsx` **حذف** می‌شوند (حذفِ import/رندر در L2-4). **فایل‌هایشان Delete نمی‌شوند** (احتمال بازگشت در فاز بعد). تسک‌های ری‌استایلِ آن‌ها (L2-12 HabitTracker و L2-13 TodaysNotes) منسوخ شده‌اند.
+
+### ۲.۳. توکن‌های CSS Variable (اضافه شدن به `index.css`)
+
+> ### ⛔️ اصلاح بحرانی: شفافیتِ Tailwind (مدلِ دو-توکنی Hex + RGB-channel)
+> در Tailwind v3، ترکیبِ یک متغیرِ Hex با مودیفایرِ شفافیت (`bg-[var(--color-primary)]/10`) **خروجیِ نامعتبر** می‌دهد (`background-color: #D8F066 / 0.1`) و تمام Badgeها/پس‌زمینه‌های شفاف **ناپدید** می‌شوند. راهکارِ اصولی و idiomatic: هر رنگی که با مودیفایرِ `/opacity` در Tailwind استفاده می‌شود، به‌صورت **کانالِ خامِ RGB** تعریف و در `tailwind.config` با سینتکسِ `rgb(var(--x) / <alpha-value>)` ثبت شود.
+>
+> **مدلِ دو-توکنی (هر دو لازم‌اند):**
+> - **توکن‌های کانالی `*-rgb`** (فقط اعداد، فاصله‌دار) → برای رجیستر در `tailwind.config` و استفاده با utilityهای رنگیِ Tailwind + شفافیت (`bg-primary/10`، `border-primary/30`، `text-muted`).
+> - **توکن‌های مقدارِ کاملِ Hex/rgba** → برای استفاده‌ی مستقیم در **CSSِ سفارشی، SVG و کلاس‌های گلس** (`.glass-card`, `.tile-lime`, `stroke="var(--color-primary)"`). این‌ها هرگز با مودیفایرِ `/opacity`ی Tailwind ترکیب نمی‌شوند.
+
+**Light Mode (`:root`):**
+
+توکن‌های کانالی (channels — برای Tailwind config):
+`--color-primary-rgb: 216 240 102` · `--color-primary-hover-rgb: 193 219 60` · `--on-primary-rgb: 0 0 0`
+`--text-main-rgb: 17 24 39` · `--text-muted-rgb: 107 114 128` · `--border-subtle-rgb: 229 231 235`
+`--success-rgb: 16 185 129` · `--error-rgb: 239 68 68` · `--warning-rgb: 245 158 11`
+
+توکن‌های مقدار-کامل (برای CSS/SVG/گلس):
+`--color-primary: #D8F066` · `--color-primary-hover: #C1DB3C` · `--text-on-primary: #000000`
+`--bg-base: #F4F5F7`  ← پس‌زمینه‌ی پایه‌ی خوداتکا (بدون تصویر خارجی؛ گرادیان ملایم مجاز: `linear-gradient(180deg,#F4F5F7,#ECEEF2)`)
+`--bg-app-glass: rgba(244,245,247,0.6)` · `--bg-panel-glass: rgba(255,255,255,0.7)` · `--bg-card: rgba(255,255,255,0.85)`
+`--text-main: #111827` · `--text-muted: #6B7280` · `--border-subtle: #E5E7EB` · `--border-neon: transparent`
+`--input-focus-ring: #111827` · `--nav-active-bg: var(--color-primary)` · `--nav-active-text: var(--text-on-primary)`
+`--nav-hover-bg: rgba(255,255,255,0.6)` · `--ink-bg: #16161A` · `--ink-text: #FFFFFF`
+`--semantic-error: #EF4444` · `--semantic-error-soft: rgba(239,68,68,0.1)` · `--semantic-success: #10B981`
+`--shadow-glass: 0 30px 60px -15px rgba(0,0,0,0.15)` · `--shadow-card: 0 10px 25px rgba(0,0,0,0.05)` · `--shadow-btn: none`
+`--autofill-bg: #FFFFFF` · `--autofill-text: #111827`
+`--radius-sm: 12px` · `--radius-md: 16px` · `--radius-lg: 24px` · `--radius-pill: 9999px`
+
+**Dark Mode (`.dark`):**
+
+توکن‌های کانالی (override):
+`--text-main-rgb: 249 250 251` · `--text-muted-rgb: 156 163 175` · `--border-subtle-rgb: 51 65 85`
+`--success-rgb: 34 197 94` · `--error-rgb: 255 107 107` · `--warning-rgb: 251 191 36`
+(`--color-primary-rgb`/`--on-primary-rgb` در هر دو مود یکسان‌اند.)
+
+توکن‌های مقدار-کامل (override):
+`--bg-base: #121212`  ← (گرادیان مجاز: `linear-gradient(180deg,#121212,#0E0E10)`)
+`--bg-app-glass: rgba(18,18,20,0.6)` · `--bg-panel-glass: rgba(30,41,59,0.4)` · `--bg-card: rgba(30,41,59,0.55)`
+`--text-main: #F9FAFB` · `--text-muted: #9CA3AF` · `--border-subtle: #334155` · `--border-neon: #D8F066`
+`--input-focus-ring: #D8F066` · `--nav-active-bg: rgba(216,240,102,0.08)` · `--nav-active-text: var(--color-primary)`
+`--nav-hover-bg: rgba(255,255,255,0.05)` · `--ink-bg: rgba(216,240,102,0.08)` · `--ink-text: var(--color-primary)`
+`--semantic-error: #FF6B6B` · `--semantic-error-soft: rgba(255,107,107,0.1)` · `--semantic-success: #22C55E`
+`--shadow-glass: none` · `--shadow-card: none` · `--shadow-btn: none`
+`--autofill-bg: #09090b` · `--autofill-text: #FFFFFF`
+
+> **چرا هم Hex و هم RGB؟** اگر `--color-primary` را فقط کانال کنیم (`216 240 102`)، آنگاه `.bg-lime { background: var(--color-primary) }` و `stroke="var(--color-primary)"` **می‌شکنند** (مقدارِ `216 240 102` رنگِ معتبر نیست). پس مقدارِ Hex برای CSS/SVG و کانال برای Tailwind utility هر دو لازم‌اند.
+
+### ۲.۴. کلاس‌های کمکی (اضافه شدن به `index.css`)
+
+> **پیکربندی Tailwind (در `index.html`، تسک L2-2):** برای اینکه utilityهای رنگی + شفافیت کار کنند، توکن‌های کانالی باید در `tailwind.config` ثبت شوند:
+> ```html
+> <script src="https://cdn.tailwindcss.com"></script>
+> <script>
+>   tailwind.config = {
+>     darkMode: 'class',
+>     theme: { extend: { colors: {
+>       primary:        'rgb(var(--color-primary-rgb) / <alpha-value>)',
+>       'primary-hover':'rgb(var(--color-primary-hover-rgb) / <alpha-value>)',
+>       'on-primary':   'rgb(var(--on-primary-rgb) / <alpha-value>)',
+>       main:           'rgb(var(--text-main-rgb) / <alpha-value>)',
+>       muted:          'rgb(var(--text-muted-rgb) / <alpha-value>)',
+>       subtle:         'rgb(var(--border-subtle-rgb) / <alpha-value>)',
+>       success:        'rgb(var(--success-rgb) / <alpha-value>)',
+>       error:          'rgb(var(--error-rgb) / <alpha-value>)',
+>       warning:        'rgb(var(--warning-rgb) / <alpha-value>)',
+>     } } }
+>   };
+> </script>
+> ```
+> پس از این، مدلِ کدنویس از کلاس‌های تمیزِ Tailwind استفاده می‌کند: `bg-primary`, `bg-primary/10`, `text-primary`, `border-primary/30`, `ring-primary/50`, `text-main`, `text-muted`, `border-subtle`, `bg-error/10`, `text-error`, `bg-success/10`, `text-on-primary` — همگی با مودیفایرِ `/opacity` به‌درستی کار می‌کنند. سطوحِ گلس (`--bg-card`, `--bg-app-glass`...) که از قبل rgba هستند، از طریقِ کلاس‌های `.glass-*` یا `bg-[var(--bg-card)]` **بدونِ** مودیفایرِ شفافیت استفاده می‌شوند.
 
 ```css
-/* Override browser autofill white background on dark theme inputs */
-input:-webkit-autofill,
-input:-webkit-autofill:hover,
-input:-webkit-autofill:focus,
-textarea:-webkit-autofill,
-textarea:-webkit-autofill:hover,
-textarea:-webkit-autofill:focus,
-select:-webkit-autofill,
-select:-webkit-autofill:hover,
-select:-webkit-autofill:focus {
-  -webkit-box-shadow: 0 0 0px 1000px #09090b inset !important;
-  -webkit-text-fill-color: #ffffff !important;
-  caret-color: #ffffff;
+.glass-app { background: var(--bg-app-glass); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 1px solid var(--border-subtle); box-shadow: var(--shadow-glass); transition: all 0.4s ease; }
+.glass-panel { background: var(--bg-panel-glass); border: 1px solid var(--border-subtle); box-shadow: var(--shadow-card); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); transition: all 0.4s ease; }
+.glass-card { background: var(--bg-card); border: 1px solid var(--border-subtle); box-shadow: var(--shadow-card); transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease; }
+.glass-card:hover { transform: translateY(-2px); }
+.tile-ink { background: var(--ink-bg); color: var(--ink-text); border: 1px solid var(--border-neon); box-shadow: var(--shadow-card); transition: all 0.4s ease; }
+.tile-lime { background-color: var(--color-primary); color: var(--text-on-primary) !important; border: none; box-shadow: var(--shadow-card); }
+.dark .tile-lime { box-shadow: 0 0 25px rgba(216,240,102,0.15); }
+.nav-active { background: var(--nav-active-bg); color: var(--nav-active-text); border: 1px solid var(--border-neon); font-weight: bold; transition: all 0.3s ease; }
+.bg-lime { background-color: var(--color-primary); color: var(--text-on-primary) !important; }
+.text-lime { color: var(--color-primary); }
+/* پس‌زمینه‌ی پایه‌ی خوداتکا — بدون تصویر خارجی. یک‌بار در ریشه‌ی App اعمال می‌شود. */
+.bg-nature { position: fixed; inset: 0; z-index: -1; background: var(--bg-base); transition: background 0.4s ease; }
+/* یک هاله‌ی ملایمِ لیمویی برای عمق (اختیاری، خوداتکا و سبک) */
+.bg-nature::after { content: ''; position: absolute; inset: 0; background: radial-gradient(1200px 600px at 80% -10%, rgba(216,240,102,0.06), transparent 60%); }
+.soft-scroll::-webkit-scrollbar { width: 4px; }
+.soft-scroll::-webkit-scrollbar-thumb { background: var(--text-muted); border-radius: 99px; opacity: 0.3; }
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+.task-check.is-done { background: var(--color-primary); border-color: var(--color-primary); }
+.task-check.is-done svg { color: var(--text-on-primary); }
+
+/* نمایش/پنهان آیکن تم به‌صورت CSS-محور (نه querySelector) — مقاوم در برابر re-render ریکت */
+/* ⛔️ هشدار: روی تگِ این آیکن‌ها هرگز کلاسِ `hidden`ی Tailwind گذاشته نشود (display:none که این قوانین را خنثی می‌کند). فقط کلاس‌های theme-icon-* قرار بگیرند؛ مدیریتِ نمایش کاملاً با همین CSS است. */
+.theme-icon-dark { display: none; }
+.theme-icon-light { display: inline-flex; }
+.dark .theme-icon-light { display: none; }
+.dark .theme-icon-dark { display: inline-flex; }
+
+/* هک Autofill توکن‌محور (جایگزین مقدار هاردکدِ #09090b) */
+input:-webkit-autofill, input:-webkit-autofill:hover, input:-webkit-autofill:focus,
+textarea:-webkit-autofill, textarea:-webkit-autofill:hover, textarea:-webkit-autofill:focus,
+select:-webkit-autofill, select:-webkit-autofill:hover, select:-webkit-autofill:focus {
+  -webkit-box-shadow: 0 0 0px 1000px var(--autofill-bg) inset !important;
+  -webkit-text-fill-color: var(--autofill-text) !important;
+  caret-color: var(--autofill-text);
   transition: background-color 5000s ease-in-out 0s;
 }
 ```
 
-### ۷.۵. فاصله از Bottom Navigation
+### ۲.۵. جدول جایگزینی جامع رنگ‌ها
 
-هر صفحه‌ای که اسکرول دارد باید `pb-24` داشته باشد تا محتوای انتهایی زیر BottomNav مخفی نشود. مودال‌های `fixed inset-0` این نیاز را ندارند چون خودشان overlay هستند.
+> این جدول مرجع اصلی تمام تسک‌هاست. هر کلاس قدیمی در کامپوننت‌ها باید با معادل جدید جایگزین شود.
+> **⛔️ به‌روزرسانیِ بحرانی (شفافیت):** ستونِ «کلاس جدید» اکنون از **کلاس‌های سمانتیکِ Tailwind** که در `tailwind.config` ثبت شده‌اند استفاده می‌کند (`primary`, `main`, `muted`, `subtle`, `error`, `success`, `on-primary`). این کلاس‌ها مودیفایرِ `/opacity` را به‌درستی پشتیبانی می‌کنند. **هرگز `bg-[var(--color-primary)]/10` ننویس** (نامعتبر در Tailwind v3) — به‌جایش `bg-primary/10`.
 
-### ۷.۶. Safe Area Insets (برای iPhone با Notch/Dynamic Island)
+| کلاس قدیمی (هاردکد) | کلاس جدید (صحیح) | کاربرد |
+|---------------------|-------------------|--------|
+| `bg-gray-900/50 backdrop-blur-xl border border-white/10 rounded-2xl` | `glass-card rounded-[var(--radius-lg)]` | WidgetContainer و کارت‌ها |
+| `bg-gray-800/70 border border-white/5` | `glass-card rounded-[var(--radius-md)]` | StatCard و کارت‌های کوچک |
+| `bg-gray-950/80 backdrop-blur-xl` | `backdrop-blur-xl` + `style={{ background: 'var(--bg-app-glass)' }}` | هدر چسبان |
+| `bg-gray-950/90 backdrop-blur-xl` | `backdrop-blur-xl` + `style={{ background: 'var(--bg-app-glass)' }}` | هدر صفحات |
+| `text-white` | `text-main` | متن اصلی |
+| `text-gray-400` / `text-zinc-400` / `text-gray-500` | `text-muted` | متن فرعی |
+| `border-white/5` / `border-white/10` / `border-zinc-800` | `border-subtle` | حاشیه‌ها |
+| `bg-sky-500` / `bg-sky-600` | `bg-lime` (دکمه‌ی لیمویی با متن مشکی) یا `bg-primary` | دکمه‌ی Primary |
+| `text-sky-400` | `text-primary` | متن لیمویی |
+| `from-sky-500 to-fuchsia-500` | `bg-lime` (حذف gradient) | دکمه‌ی مرکزی BottomNav |
+| `from-indigo-500 to-purple-600` | `bg-primary` | روز فعال تقویم |
+| `bg-sky-500 border-sky-400` (checkbox done) | `bg-primary border-primary` | checkbox انجام‌شده |
+| `border-sky-500` (hover/focus) | `border-[var(--input-focus-ring)]` (مقدارِ کامل، بدون شفافیت) | focus state |
+| `ring-sky-500` / `ring-sky-400/50` | `ring-primary/50` | ring focus |
+| `bg-sky-500/10 text-sky-400 border-sky-500/20` | `bg-primary/10 text-primary border-primary/20` | ViewMode فعال / badge |
+| `bg-red-500/20 text-red-300` | `bg-error/10 text-error` | badge خطا |
+| `bg-green-500/20 text-green-300` | `bg-success/10 text-success` (یا برای تأکید برند: `bg-primary/10 text-primary`) | badge موفقیت |
+| `bg-orange-600/20 text-orange-400` | `bg-primary/10 text-primary` | دکمه عادت |
+| `bg-gray-950` (ریشه App) | حذف — `bg-nature` div گلوبال در App | پس‌زمینه ریشه |
+| `shadow-sky-500/30` | `shadow-[0_0_15px_rgb(var(--color-primary-rgb)/0.3)]` | سایه لیمویی |
+| `bg-zinc-950/90 border-white/10` (مودال) | `bg-[var(--bg-card)] border-subtle` | بدنه مودال |
 
-```css
-/* در index.css */
-:root {
-  --safe-area-inset-bottom: env(safe-area-inset-bottom, 0px);
-  --safe-area-inset-top: env(safe-area-inset-top, 0px);
-}
-```
-
-و در Tailwind config یا inline:
-```jsx
-
-```
-
-### ۷.۷. رجیستر باگ‌های R11-R14 (اضافه به §۶)
-
-| # | فایل | باگ | راه‌حل |
-|---|------|-----|--------|
-| 🔴 | `index.css` | autofill browser سفید می‌شود | `-webkit-autofill` override |
-| 🔴 | تمام فایل‌های component | `bg-zinc-855`, `z-45`, `dir-rtl` کلاس | جایگزینی سیستماتیک |
-| 🔴 | `features/chat/ChatView.tsx` | `Page` enum ایمپورت نشده — runtime error | اضافه کردن import |
-| 🟠 | `features/projects/components/ProjectDetailsModal.tsx` | `z-45` invalid، `dir-rtl` بی‌اثر | `z-[70]` و `dir="rtl"` |
-| 🟠 | تمام مودال‌ها | `min-h-0` روی content area نیست | افزودن به div اسکرول‌پذیر |
-| 🟠 | `features/projects/ProjectsView.tsx` | گرید `md:grid-cols-2 lg:grid-cols-3` در اپ mobile-only | فقط `grid-cols-1` |
-| 🟡 | تمام مودال‌ها | z-index سلسله مراتب نامنظم | رعایت جدول §۷.۲ |
-
----
-
-## ۸. معماری فیچر «کارت به کارت + رسید» (Card-to-Card Technical Architecture)
-
-> این بخش backbone مشترک (DB/Storage/RPC) و سهم **کلاینت** را تعریف می‌کند. سهم پنل ادمین در `docs_of_manager_panel/ARCHITECTURE.md §۶`.
-> فایل SQL جدید: `supabase/sql/28_card_to_card_system.sql` (Idempotent، پیشوند `28` تا با `20–27` تداخل نکند). این فایل توسط مالک به‌صورت دستی در SQL Editor اجرا می‌شود.
-
-### ۸.۰. اصل طراحی: دو فلو، یک جدول، صفر آلودگی
-درگاه آنلاین زیبال (تایید اتوماتیک) و کارت‌به‌کارت (تایید دستی) روی **همان جدول `payments`** زندگی می‌کنند و فقط با `gateway` و `status` از هم جدا می‌شوند. تفاوت کلیدی **در زمان رزرو کوپن** است:
-
-| فلو | gateway | لحظه‌ی رزرو کوپن (`used_count++`) | فعال‌سازی |
-|-----|---------|----------------------------------|-----------|
-| آنلاین زیبال | `zibal` | در `activate_subscription` هنگام verify (موجود، دست‌نخورده) | اتوماتیک پس از verify |
-| تخفیف ۱۰۰٪ | `bypass` | در `activate_subscription` هنگام verify (موجود) | اتوماتیک، بدون بانک |
-| **کارت به کارت** | `card_to_card` | **در لحظه‌ی ثبت** داخل `submit_manual_payment` | دستی توسط ادمین |
-
-> ⚠️ **قانون ضدِ Double-Count:** چون کارت‌به‌کارت کوپن را در *ثبت* رزرو می‌کند، تایید ادمین از RPCِ مجزای `activate_manual_subscription` استفاده می‌کند که **کوپن را لمس نمی‌کند**. هرگز از `activate_subscription` آنلاین برای تایید دستی استفاده نشود.
-
-### ۸.۱. افزوده‌های اسکیما (`payments`)
-| ستون/مقدار | نوع | توضیح |
-|------------|-----|------|
-| `offline_receipt_url` | text null | مسیر رسید در باکت خصوصی `receipts` (نه URL عمومی، نه Base64) |
-| `manual_decline_reason` | text null | علت رد توسط ادمین، برای نمایش بنر به کاربر |
-| `status = 'pending_manual'` | مقدار جدید | رسید ثبت‌شده، منتظر رسیدگی ادمین. مقادیر قبلی (`pending`/`paid`/`failed`/`canceled`) حفظ می‌شوند |
-| `gateway = 'card_to_card'` | مقدار جدید | تفکیک ردیف‌های کارت‌به‌کارت از `zibal`/`bypass` |
-
-- **«رد شده» چگونه نمایش داده می‌شود؟** ردیفی با `gateway='card_to_card'` + `status='failed'` + `manual_decline_reason IS NOT NULL`. (status جدید برای «رد» نمی‌سازیم تا منطق درآمد ادمین ساده بماند.)
-- ستون‌های موجود `discount_code_id`, `discount_amount_irr`, `final_amount_irr`, `amount_irr` بدون تغییر استفاده می‌شوند.
-
-### ۸.۲. Storage — باکت خصوصی `receipts`
-- ساخت باکت خصوصی `receipts` (الگوی §موجودِ `11_storage.sql`). RLS سراسری `storage.objects` (کلید: `foldername[1] = auth.uid()`) **به‌صورت خودکار** کارت‌به‌کارت را پوشش می‌دهد؛ نیازی به policy جدید نیست.
-- ساختار مسیر: `{user_id}/{payment_or_uuid}.jpg`.
-- حذف رسید فقط از Edge Function ادمین با `service_role` (bypass RLS) پس از تایید/رد.
-
-### ۸.۳. افزوده‌های RPC (در `28_card_to_card_system.sql`)
-همه `SECURITY DEFINER SET search_path = public` و Idempotent (`create or replace`).
-
-| تابع | فراخوان | مسئولیت |
-|------|---------|---------|
-| `preview_discount(p_plan_code text, p_code text)` | **کلاینت** (read-only) | بدون هیچ نوشتن: اعتبار/انقضا/ظرفیت کوپن را چک و خروجی `(valid bool, reason text, plan_price bigint, discount_amount bigint, final_amount bigint, is_full_discount bool)` می‌دهد. فقط برای branching UI (نمایش «فعال‌سازی رایگان» در برابر دو دکمه‌ی پرداخت). |
-| `submit_manual_payment(p_plan_code text, p_code text, p_receipt_path text)` | **کلاینت** | اتمیک: (۱) اگر کاربر یک ردیف `pending_manual` باز دارد → خطا (یک درخواست در جریان). (۲) قیمت پلن را از `plans` می‌خواند. (۳) اگر کوپن بود: `SELECT ... FOR UPDATE` روی `discount_codes`، چک انقضا/ظرفیت، سپس `used_count++` (رزرو). (۴) `final_amount` را حساب می‌کند؛ اگر صفر شد خطا می‌دهد (مسیر ۱۰۰٪ باید bypass باشد نه کارت‌به‌کارت). (۵) ردیف payment با `status='pending_manual'`, `gateway='card_to_card'`, `offline_receipt_url=p_receipt_path`, `user_id=auth.uid()` درج می‌کند. خروجی: `payment_id`. |
-| `activate_manual_subscription(p_payment_id uuid)` | **ادمین** (service_role) | اعتبارسنجی `status='pending_manual'`؛ سپس `status='paid'`+`paid_at`، upsert اشتراک `active` و ریست `usage_counters` (دقیقاً مثل بخش ۲–۴ از `activate_subscription`). **کوپن را لمس نمی‌کند** (قبلاً در ثبت رزرو شده). |
-| `reject_manual_payment(p_payment_id uuid, p_reason text)` | **ادمین** (service_role) | اعتبارسنجی `status='pending_manual'`؛ `status='failed'`, `manual_decline_reason=p_reason`؛ اگر `discount_code_id` داشت رول‌بک رزرو: `used_count = greatest(0, used_count - 1)`. (حذف فایل رسید کارِ Edge Function است، نه RPC.) |
-
-> `activate_subscription` (آنلاین) و `زیبال` دست‌نخورده می‌مانند. RPCهای ادمین می‌توانند از Edge Function با service_role صدا زده شوند (که RLS را دور می‌زند) و صرفاً برای اتمیک‌بودن داخل RPC کپسوله شده‌اند.
-
-### ۸.۴. سهم کلاینت — لایه‌ی سرویس (`services/billingService.ts`)
-متدهای جدید/تغییر‌یافته (امضاها مینیمال و سازگار):
-- `startCheckout(planCode, discountCode?)` ← افزودن آرگومان اختیاری `discount_code` و پاس‌دادن آن به `zibal-request` (هم برای آنلاین، هم برای bypass ۱۰۰٪). zibal-request از قبل `{ plan_code, discount_code }` را می‌پذیرد.
-- `previewDiscount(planCode, code)` → `supabase.rpc('preview_discount', ...)`.
-- `submitManualPayment(planCode, code, file)`:
-  1. گارد حجم ورودی (>۲MB → خطای فارسی).
-  2. فشرده‌سازی تا <۵۰۰KB با حلقه روی `compressImage` از `utils/imageUtils.ts` (کاهش کیفیت/ابعاد تا رسیدن به آستانه)، سپس `dataURLtoBlob`.
-  3. آپلود به `receipts/{uid}/{uuid}.jpg` با `supabase.storage`.
-  4. `supabase.rpc('submit_manual_payment', { p_plan_code, p_code, p_receipt_path })`.
-- `getManualPaymentState()` → آخرین ردیف `gateway='card_to_card'` کاربر را می‌خواند (RLS فقط ردیف خودش) و وضعیت UI را برمی‌گرداند: `none` | `pending` (`pending_manual`) | `rejected` (`failed` + `manual_decline_reason`).
-
-> همه‌ی فعال‌سازی‌ها سمت سرور نهایی می‌شوند؛ کلاینت فقط `getSubscription`/`getManualPaymentState` را برای نمایش می‌خواند (ضدالگو ۳۲).
-
-### ۸.۵. سهم کلاینت — UI و ماشین وضعیت
-ساختار feature-based زیر `features/billing/`:
-- **`ProfileModal`** (`components/ProfileModal.tsx`): badge پلن فعلی → دکمه‌ی ورود به اشتراک. به‌جای trigger مستقیم Paywall، مودال جدید اشتراک را باز می‌کند.
-- **`SubscriptionModal`** (جدید، `features/billing/components/`): نمای **وضعیت فعلی** (پلن، انقضا، یا «در انتظار تایید»، یا بنر «رد شد + علت») در بالا؛ سپس لیست پلن‌ها با دکمه‌ی **«تمدید»** (اشتراک فعال) یا **«خرید»** (نداشتن/انقضا). در وضعیت `pending` دکمه‌ها قفل‌اند.
-- **`PaymentMethodModal`** (جدید): فیلد کد تخفیف → `previewDiscount`. اگر `is_full_discount` → تنها دکمه‌ی **«فعال‌سازی رایگان»** (`startCheckout(plan, code)` → مسیر bypass). در غیر این صورت دو دکمه: **آنلاین** (`startCheckout(plan, code)`) و **کارت به کارت** (باز کردن مودال رسید).
-- **`ReceiptUploadModal`** (جدید): نمایش اطلاعات کارت مقصد، فایل‌پیکر (`accept="image/*"`)، گارد ۲MB، پیش‌نمایش، و دکمه‌ی ثبت → `submitManualPayment`. پس از موفقیت، وضعیت `pending` و قفل.
-- **State machine نمایش اشتراک:**
-  - `active`/`expired` → پلن‌ها با «تمدید»/«خرید».
-  - `pending_manual` → فقط «در انتظار تایید»؛ بدون هیچ دکمه (ضدالگو ۳۱).
-  - `rejected` → بنر قرمز با `manual_decline_reason`، سپس باز شدن دوباره‌ی خرید.
-
-### ۸.۶. رجیستر باگ/ریسک‌های این فیچر
-| اولویت | ریسک | کنترل |
-|--------|------|-------|
-| 🔴 | Double-count کوپن در تایید دستی | RPC مجزای `activate_manual_subscription` بدون لمس کوپن |
-| 🔴 | پر شدن Storage رایگان | فشرده‌سازی <۵۰۰KB + گارد ۲MB + حذف فوری توسط ادمین |
-| 🟠 | چند درخواست هم‌زمانِ کاربر | گارد «یک `pending_manual` باز» در `submit_manual_payment` |
-| 🟠 | همزمانی ظرفیت کوپن | `SELECT ... FOR UPDATE` در رزرو و رول‌بک |
-| 🟡 | عدم تطابق `plan_code` کلاینت با `plans` | فقط plan_codeهای موجود در جدول `plans` استفاده شوند |
+> **قاعده‌ی کلی برای مدلِ کدنویس:**
+> - رنگِ سالید با شفافیت → کلاسِ سمانتیک: `bg-primary/10`, `text-error`, `border-primary/30`, `ring-primary/50`.
+> - سطحِ گلسِ آماده (rgba از پیش‌پخته) → کلاسِ `.glass-card`/`.glass-panel`/`.tile-*` یا `bg-[var(--bg-card)]` بدون `/opacity`.
+> - مقدارِ تک (focus-ring, border-neon, shadow) → `[var(--token)]` یا `rgb(var(--*-rgb)/alpha)` برای شفافیت.
+> - **هرگز** `Hex-var + /opacity` (مثل `bg-[var(--color-primary)]/10`) — نامعتبر است.
 
 ---
 
-## ۹. فاز F — نقشه‌ی مهندسی (PWA، باگ‌ها، مصرف، تیکت، RAG پروژه، رفتار AI)
+## ۳. معماری فاز L2 — ریدیزاین سایر صفحات (فاز دوم)
 
-> «چه چیزی/چرا» در `PROJECT.md §۸`. گام‌به‌گام در `tasks.md` (F1–F9). یادآوری قانون SQL: **فایل SQL موجود ویرایش نمی‌شود؛ فایل جدید با پیشوند `31`+ ساخته می‌شود** و مالک آن را دستی در SQL Editor اجرا می‌کند.
+### ۳.۱. اصول
 
-### ۹.۰. خلاصه‌ی نگاشت درخواست‌ها به تسک‌ها
-| درخواست کاربر | تسک |
-|---|---|
-| ۱ سافاری + PWA کامل | F1 |
-| ۲ اسکرول افقی اشتراک | F3 |
-| ۳ جهت آیکون بازگشت RTL | F2 |
-| ۴ باگ دکمه‌های حالت AI | F4 |
-| ۵ نمایش مصرف (چت + اشتراک) | F3 + F4 |
-| ۶ درک عمیق پروژه‌ها (RAG) | F7 + F8 |
-| ۷ سیستم تیکت پشتیبانی | F9 |
-| ۸ فید شدن لبه‌های لیست | F6 |
-| ۹ جایگاه دکمه‌ی لینک تسک↔یادداشت | F5 |
-| ۱۰ جلوگیری از پیشنهاد خودسرانه AI | F8 |
+- **بدون شکستن ساختار المان‌ها** (مگر موارد خاص و ضروری).
+- تمرکز: جایگزینی رنگ‌های هاردکد با توکن‌های CSS Variable، بومی‌سازی چیدمان دسکتاپ، ریسپانسیو کردن.
+- تمام صفحات باید خط‌به‌خط با سیستم جدید منطبق شوند.
+- **هدر موبایل:** ساختار فعلی حفظ، فقط رنگ/پدینگ/استایل آپدیت شود.
+- **BottomNav:** ساختار فعلی حفظ، فقط رنگ/استایل آپدیت شود.
 
-### ۹.۱. PWA و رفع باگ سافاری (F1)
-- **فایل‌های جدید:**
-  - `public/manifest.webmanifest`: `name`, `short_name=Hexer`, `start_url="/"`, `scope="/"`, `display="standalone"`, `orientation="portrait"`, `background_color="#09090b"`, `theme_color="#09090b"`, `dir="rtl"`, `lang="fa"`, آرایه‌ی `icons` شامل `192×192`, `512×512` و یک آیکون `512×512` با `purpose:"maskable"`.
-  - `public/icon-192.png`, `public/icon-512.png`, `public/icon-maskable-512.png`, `public/apple-touch-icon.png` (۱۸۰×۱۸۰). آیکون‌ها با لوگوی اختصاصی هکسر تولید می‌شوند (پس‌زمینه‌ی تیره، تم برند).
-  - `public/sw.js`: Service Worker مینیمال. استراتژی **network-first** برای `navigate` و درخواست‌های Supabase/API؛ **cache-first** فقط برای asset‌های ثابت (فونت، آیکون، manifest). نسخه‌بندی cache با ثابت `CACHE_VERSION` و پاک‌سازی کش قدیمی در `activate`. هرگز پاسخ‌های `*.supabase.co` کش نشوند.
-- **`index.html`:** افزودن `<link rel="manifest" href="/manifest.webmanifest">`، `<meta name="theme-color" content="#09090b">`، `<meta name="apple-mobile-web-app-capable" content="yes">`، `<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">`، `<link rel="apple-touch-icon" href="/apple-touch-icon.png">`، و اصلاح viewport به `width=device-width, initial-scale=1.0, viewport-fit=cover`.
-- **`index.tsx`:** ثبت Service Worker پس از `load` (`navigator.serviceWorker.register('/sw.js')` با گارد `'serviceWorker' in navigator` و try/catch).
-- **رفع باگ هدر سافاری (chrome/address-bar):** ریشه از `h-screen` (`100vh` ثابت) است که با نوار آدرس داینامیک iOS هماهنگ نیست؛ در `App.tsx` کانتینر ریشه به `h-[100dvh]` تغییر کند. در `index.css`: `html, body { height: 100%; overscroll-behavior-y: none; }` و افزودن `--safe-area-inset-*` (اگر نیست). هدرهای `sticky top-0` با ثابت‌شدن ارتفاع ویوپورت دیگر نیاز به اسکرول اولیه ندارند.
-- **محدودیت:** بدون افزودن کتابخانه‌ی PWA (مثل workbox)؛ SW دست‌نویس و سبک. هیچ کش تهاجمی (ضدالگو ۳۳/۳۴).
+### ۳.۲. هک‌های iOS/Safari که نباید آسیب ببینند
 
-### ۹.۲. جهت آیکون بازگشت RTL (F2)
-- ریشه: در RTL، بازگشت باید به **راست** اشاره کند. نمونه‌های خطا: `NoteEditorModal.tsx` از `ChevronDownIcon` با `rotate-90` (به چپ) استفاده می‌کند؛ بررسی `ProjectDetailsModal.tsx` و `MoreCitationsModal.tsx`.
-- راه‌حل: استفاده از `ChevronRightIcon` (در `components/icons.tsx` موجود است) برای دکمه‌ی بازگشت RTL؛ حذف ترفند `rotate-90`. ضدالگو ۳۶.
+1. `env(safe-area-inset-bottom/top)` در `index.css` و کامپوننت‌ها.
+2. `-webkit-overflow-scrolling: touch` برای اسکرول نرم مودال‌ها.
+3. `overscroll-behavior: contain/none` برای جلوگیری از scroll chaining.
+4. `-webkit-text-size-adjust: 100%` برای جلوگیری از zoom متن.
+5. `h-[100dvh]` به جای `h-screen` در `App.tsx`.
+6. `-webkit-tap-highlight-color: transparent` (در ماکت وجود دارد، باید به `index.css` اضافه شود).
+7. `viewport-fit=cover` در meta tag.
+8. کلاس‌های `.pb-safe`, `.pt-safe`, `.pb-bottom-nav`, `.bottom-nav-inset`, `.safe-spacer-bottom`.
+9. `maximum-scale=1.0, user-scalable=no` در viewport meta.
+10. هک autofill — **با توکن `var(--autofill-bg)`/`var(--autofill-text)` در یک قانونِ واحد** (نه دو بلوک جدا، نه مقدار هاردکد). مقادیر در `:root` (سفید/مشکی) و `.dark` (`#09090b`/سفید) عوض می‌شوند. `transition: background-color 5000s` حفظ شود.
 
-### ۹.۳. باگ دکمه‌های حالت AI (F4)
-- ریشه: در `features/chat/ChatView.tsx` کامپوننت `ModeChip` با پراپ `m=` صدا زده می‌شود ولی `ModeChip` پراپ `mode` می‌خواهد → `currentMode === undefined` و highlight شکسته. همچنین کلاس نامعتبر `ring-sky-450/55` در `ModeChip.tsx`.
-- راه‌حل: تصحیح فراخوانی به `mode=`؛ اصلاح کلاس به `ring-sky-400/50`. تضمین «دقیقاً یک حالت فعال» با کنتراست بصری واضح (ضدالگو ۲۲ و ۳۷).
+---
 
-### ۹.۴. نمایش مصرف (F3 + F4)
-- کامپوننت `UsageMeter` (موجود در `features/billing/components/UsageMeter.tsx`) از RPCهای `get_usage_status` و `get_daily_usage` تغذیه می‌شود و قبلاً فقط در `SubscriptionPage` استفاده شده.
-- **اشتراک (F3):** افزودن `UsageMeter` به بالای `SubscriptionModal` در حالت عادی/active (نه در حالت `pending` قفل‌شده).
-- **چت (F4):** یک نمای **فشرده** از مصرف در هدر `ChatView` یا حالت empty-state. برای جلوگیری از تکرار کوئری، یا یک پراپ `compact` به `UsageMeter` افزوده شود یا یک کامپوننت سبک `UsagePill` که فقط `get_usage_status` را می‌خواند. کوئری نباید در رندر لوپ شود (deps پایدار، ضدالگو ۳).
+## ۴. مسیردهی فایل‌های جدید
 
-### ۹.۵. اسکرول افقی اشتراک (F3)
-- منابع محتمل بیرون‌زدگی: گریدهای دسکتاپ‌محور (`md:grid-cols-2 lg:grid-cols-4` در `SubscriptionPage`)، عرض‌های ثابت، اعداد `font-mono` طولانی بدون شکست، و نبود `overflow-x-hidden` روی ویوپورت اصلی (`App.tsx` → `<main>`).
-- راه‌حل: حذف گریدهای دسکتاپ در اپ mobile-only (فقط `grid-cols-1`)، افزودن `min-w-0`/`max-w-full`/`break-words` به کارت‌ها و باکس فاکتور، و `overflow-x-hidden` روی `<main>` در `App.tsx`. ممیزی `SubscriptionModal`, `PaymentMethodModal`, `ReceiptUploadModal`. ضدالگو ۳۵/۲۶.
+> ### ✅ اصلاح: فیچرها حذف/موکول نمی‌شوند — منطقِ view-layer برایشان ساخته می‌شود
+> ماکتِ `index.html` طرحِ **نهایی و قطعی** است و شاملِ ProductivityChart (بهره‌وری) و FocusTimer/Pomodoro (تمرکز عمیق) است. معمار حقِ حذفِ صورت‌مسئله را ندارد. هر دو با منطقِ **کاملاً کلاینتیِ خوداتکا** ساخته می‌شوند (بدون درگیر کردن بک‌اند/سرویس/هوک/کانتکست) — این منطقِ view-layer است و قانونِ «دست‌نزدن به State/Logic/Contextِ داده» را نقض نمی‌کند.
 
-### ۹.۶. جایگاه دکمه‌ی لینک تسک↔یادداشت (F5)
-- وضعیت فعلی: `LinkNotePicker` فقط در **حالت view** و فقط برای آیتم موجود (`!isNew`) در `TaskEditorModal` نمایش داده می‌شود؛ در حالت ساخت/ویرایش فرم در دسترس نیست. مشابهاً `LinkTaskPicker` در `NoteEditorModal` انتهای canvas است.
-- راه‌حل UX: انتقال بخش لینک به **داخل فرم اصلی (edit mode)** در جایگاهی منطقی (پس از فیلدهای اصلی، کنار انتخاب پروژه). برای آیتم جدیدی که هنوز `id` ندارد، یا لینک پس از اولین ذخیره فعال شود یا بخش لینک به‌صورت غیرفعال با راهنمای کوتاه نمایش داده شود. اتصال‌ها همچنان از `services/linkService.ts` (`linkTaskNote`/`unlinkTaskNote`/`getLinked*`) انجام می‌شوند. بدون تغییر بک‌اند.
+| فایل جدید | مسیر | نقش | وضعیت در L2 |
+|-----------|------|------|------|
+| `Sidebar.tsx` (بازنویسی) | `components/` | نوار کناری دسکتاپ؛ ناوبری via `useData()`؛ **رندرِ گلوبال در `App.tsx`** (نه داخل Dashboard) | **ساخته شود (L2-3)** |
+| `ProductivityChart.tsx` | `features/dashboard/components/` | چارت SVG بهره‌وری هفته | **ساخته شود (L2-14)** — Presentational، با `useMemo`ِ خوانشی روی `tasks` از `useData()` (درصد تکمیلِ روزانه). بدون mutation/fetch جدید. **بدون داده‌ی ساختگی.** |
+| `FocusTimer.tsx` | `features/dashboard/components/` | پومودوروی تمرکز عمیق | **ساخته شود (L2-15)** — استیتِ محلیِ کلاینت: `timeLeft`/`isRunning`/`selectedTask`/`isDropdownOpen` + یک `useEffect` با `setInterval`. **بدون بک‌اند، بدون سرویس، بدون تغییر `useDataManager`.** |
 
-### ۹.۷. فید شدن لبه‌های لیست‌های اسکرول‌خور (F6)
-- هدف: محو نرم (fade) لبه‌های بالا/پایین نواحی اسکرول در `NotesView`, `ProjectsView` (و در صورت نیاز `TasksView`) به‌جای کات سخت.
-- راه‌حل: کلاس کمکی در `index.css` با `mask-image: linear-gradient(...)` (و `-webkit-mask-image`) روی کانتینر اسکرول، یا overlay‌های gradient ثابت `pointer-events-none` در بالا/پایین. باید با پس‌زمینه‌ی واقعی هر صفحه (`zinc-950`/`slate-950`) هماهنگ باشد و عملکرد اسکرول/کلیک را خراب نکند.
+> **تصمیمِ نهاییِ پروداکت:** `TodaysNotes` و `HabitTracker` در طرحِ جدید لازم نیستند و از درختِ رندرِ Dashboard **حذف** می‌شوند (منطبق با ماکت و بریفِ اولیه). **فایل‌هایشان Delete نمی‌شوند** (احتمال بازگشت در فاز بعد) — فقط import/رندرشان از `Dashboard.tsx` برداشته می‌شود. تسک‌های ری‌استایلِ آن‌ها (L2-12/L2-13) منسوخ‌اند.
 
-### ۹.۸. RAG و درک عمیق پروژه‌ها (F7 backend + F8 context)
-**F7 — دیتابیس و وکتورایز (فایل جدید `supabase/sql/31_rag_projects.sql`):**
-- افزودن ستون `embedding vector(768)` به `projects` (مثل tasks/notes).
-- تریگر `enqueue_vectorize` روی `projects` (الگوی موجود `22_fix_vectorize_webhook.sql`) که با `type='project'` به تابع `vectorize` پیام می‌دهد. (کلاینت هرگز مستقیم — ضدالگو ۴۰/۱۵.)
-- بازنویسی `hybrid_search` (فایل جدید، مثل `26_update_hybrid_search.sql`) برای افزودن `UNION ALL` پروژه‌ها: `type='project'`, `snippet = COALESCE(description,'')`, با همان آستانه‌ها و RFF و `where user_id = auth.uid()`.
-- `NOTIFY pgrst, 'reload schema';` در انتها.
-- **`supabase/functions/vectorize/index.ts`:** افزودن شاخه‌ی `type==='project'` → `table='projects'`, `combinedText = title + ' ' + description`.
+> هیچ فایل جدیدی خارج از مسیرهای فوق ساخته نشود. هیچ پکیج npm جدیدی نصب نشود.
 
-**F8 — زمینه و Intent (Edge `ai-assistant`):**
-- **`lib/meta-context.ts`:** هنگام واکشی پروژه‌ها، علاوه بر `id,title` فیلد `description` نیز خوانده و **خلاصه‌ای** از هدف هر پروژه به context افزوده شود تا AI «هدف پروژه» را بفهمد (برای لینک نوت/تسک به پروژه‌ی درست).
-- **`lib/system-prompt.ts`:**
-  - معرفی پروژه‌ها به‌عنوان موجودیت قابل‌مرجع و امکان نسبت‌دادن آیتم به پروژه‌ی مرتبط.
-  - **Intent-gating (ضدالگو ۳۸):** قانون صریح که `SUGGEST_LINK` و پیشنهاد دیتای مرتبط فقط هنگام نیت آشکارِ جستجو/پیدا کردن/ساختن/پیگیری/لینک مجاز است؛ در گفت‌وگوی معمولی هیچ پیشنهاد اضافه تولید نشود. (دستور فعلی `SUGGEST_LINK` تا حدی این را دارد؛ باید سخت‌گیرتر و شامل تحلیل Intent اولیه شود.)
-- **`lib/action-processor.ts`:** چون `hybrid_search` اکنون پروژه هم برمی‌گرداند، `SUGGEST_LINK` می‌تواند `type='project'` نیز تولید کند؛ مدیریت ایمن این نوع در نتایج (بدون شکستن مسیرهای task/note).
-- قرارداد API بدون تغییر؛ فرانت‌اند تغییر اجباری نمی‌بیند (citations ممکن است `type='project'` داشته باشد → مدیریت کلیک امن در `ChatView`/`CitationCard`).
+---
 
-### ۹.۹. سیستم تیکت پشتیبانی (F9)
-> الگوی مرجع: «فیش‌های بانکی» (جدول + RLS مالک‌محور + تریگر تلگرام + اکشن `admin-api`). فایل SQL جدید: `supabase/sql/32_support_tickets.sql` (Idempotent، اجرای دستی).
+## ۵. قوانین تطبیق با کامپوننت‌های زنده
 
-**۹.۹.۱. اسکیما — `support_tickets`:**
-| ستون | نوع | توضیح |
-|------|-----|------|
-| id | uuid PK default gen_random_uuid() | |
-| user_id | uuid not null FK→auth.users | RLS |
-| subject | text not null | عنوان تیکت |
-| message | text not null | توضیحات |
-| status | text default 'open' check in ('open','closed') | |
-| created_at | timestamptz default now() | ایندکس `(user_id, created_at)` |
+1. **هر مودال باید به هندلر زنده متصل بماند.** مثال: دکمه «مشاهده» در StatsOverview → `onOpenWeeklyReport()` → `WeeklyReportModal`.
+2. **هر آیتم ناوبری باید به `setPage()` متصل شود.** مثال: «خانه» → `Page.Dashboard`، «کارها» → `Page.Tasks`.
+3. **هر checkbox باید به `toggleTaskCompletion()` متصل بماند.**
+4. **هر input در QuickCapture باید به `addTask()` / `addNote()` متصل بماند.**
+5. **رینگ پیشرفت هدر باید به `todayProgress` و `hasTasksToday` متصل بماند.**
+6. **toggle تم (light/dark) باید به مکانیزم `localStorage('hexer-theme')` متصل شود.**
+7. **هیچ داده‌ی استاتیک به عنوان hardcode در کامپوننت نماند؛ همه باید به داده‌های زنده از `useData()` متصل شود.**
+8. **هیچ کدی از فایل ماکت استاتیک `dashboard_redisign/index.html` کپی نشود. تمام دستورالعمل‌های بصری در `tasks.md` به صورت دقیق کلاس‌به‌کلاس مشخص شده‌اند.**
 
-- **RLS فعال:** `auth.uid() = user_id` برای SELECT/INSERT مالک. بدون UPDATE/DELETE کلاینت (مدیریت با ادمین). ضدالگو ۱/۳۹.
-- **تریگر تلگرام:** تابع `notify_telegram_on_new_ticket()` دقیقاً مثل `notify_telegram_on_manual_payment` در `30_telegram_notifications.sql` — خواندن `telegram_settings` (همان جدول)، ساخت پیام HTML فارسی (نام کاربر از `profiles`، عنوان، خلاصه‌ی متن)، و `net.http_post` غیرمسدودکننده به `sendMessage`. تریگر `AFTER INSERT ON public.support_tickets`.
-- `NOTIFY pgrst, 'reload schema';`.
+---
 
-**۹.۹.۲. پنل ادمین — `supabase/functions/admin-api/index.ts`:**
-- افزودن اکشن `list_tickets` (الگوی `list_manual_payments`): واکشی `support_tickets` + join دستی با `profiles` برای نمایش نام/ایمیل کاربر. (اکشن `close_ticket` اختیاری برای آینده.) توکن تلگرام فقط سمت سرور.
+## ۶. رجیستری فایل‌های مرده (Dead Files Registry) — ⚠️ حیاتی
 
-**۹.۹.۳. کلاینت:**
-- **`services/ticketService.ts` (جدید):** `submitTicket(subject, message)` → یا INSERT مستقیم با RLS مالک، یا RPC `submit_ticket` (ترجیح: INSERT مستقیم چون policy مالک کافی است). و `getMyTickets()` اختیاری.
-- **`components/SupportTicketModal.tsx` (جدید):** فرم عنوان + توضیحات، اعتبارسنجی، ارسال، پیام موفقیت Toast. علاوه بر دکمه‌ی ثبت، یک دکمه‌ی **«گفتگو در تلگرام»** که لینک مستقیم چت تلگرامی پشتیبانی را در تب جدید باز می‌کند (آیدی تلگرام پشتیبانی به‌صورت ثابت/کانفیگ کلاینت؛ نه توکن بات).
-- **`components/ProfileModal.tsx`:** افزودن آیتم «پشتیبانی و ارسال تیکت» که `SupportTicketModal` را باز می‌کند (جایگزین یکی از placeholderهای غیرفعال فعلی).
-- z-index طبق §۷.۲ (مودال روی ProfileModal `z-[90]` → تیکت `z-[100]`+).
+> در حین کالبدشکافی، گراف importها کامل بررسی شد. فایل‌های زیر در پوشه‌ی `components/` وجود دارند ولی **هیچ‌جا import نمی‌شوند** (نسخه‌های قدیمی/تکراری). فایل‌های زنده در `features/` هستند. **مدل کدنویس به‌هیچ‌وجه نباید این فایل‌ها را ویرایش کند** — ویرایش آن‌ها هیچ اثری در اپ ندارد و باعث هدررفت و سردرگمی می‌شود (تله‌ی Duplicate Mounting در سطح فایل).
 
-### ۹.۱۰. رجیستر باگ‌های فاز F (افزوده به §۶ و §۷.۷)
-| # | فایل | باگ | رفع |
-|---|------|-----|-----|
-| 🔴 | `App.tsx` | `h-screen` (۱۰۰vh ثابت) → هدر سافاری تا اسکرول نچسبد | `h-[100dvh]` + overscroll در `index.css` |
-| 🔴 | `features/chat/ChatView.tsx` | `ModeChip` با `m=` صدا زده می‌شود (حالت فعال خراب) | تصحیح به `mode=` |
-| 🔴 | `features/chat/components/ModeChip.tsx` | کلاس نامعتبر `ring-sky-450/55` | `ring-sky-400/50` |
-| 🟠 | `features/billing/pages/SubscriptionPage.tsx` | گرید دسکتاپ `md:/lg:` در اپ mobile-only + بیرون‌زدگی عرضی | `grid-cols-1` + `min-w-0`/`overflow-x-hidden` |
-| 🟠 | `features/notes/components/NoteEditorModal.tsx` | آیکون بازگشت با `rotate-90` به چپ اشاره می‌کند (RTL) | `ChevronRightIcon` |
-| 🟠 | `features/tasks/components/TaskEditorModal.tsx` | دکمه‌ی لینک یادداشت فقط در view-mode/آیتم موجود | انتقال به فرم اصلی |
-| 🟡 | `features/notes/NotesView.tsx`, `features/projects/ProjectsView.tsx` | کات سخت لبه‌های اسکرول | fade با mask/gradient |
-| 🟡 | `features/tasks/components/LinkNotePicker.tsx` | کلاس نامعتبر `text-zinc-350` | `text-zinc-300` |
+| فایل مرده (ویرایش نشود) | فایل زنده‌ی معادل (هدفِ واقعی) |
+|------------------------|------------------------------|
+| `components/Dashboard.tsx` | `features/dashboard/Dashboard.tsx` |
+| `components/ChatView.tsx` | `features/chat/ChatView.tsx` |
+| `components/NotesView.tsx` | `features/notes/NotesView.tsx` |
+| `components/ProjectsView.tsx` | `features/projects/ProjectsView.tsx` |
+| `components/TasksView.tsx` | `features/tasks/TasksView.tsx` |
+| `components/TaskEditorModal.tsx` | `features/tasks/components/TaskEditorModal.tsx` |
+| `components/NoteEditorModal.tsx` | `features/notes/components/NoteEditorModal.tsx` |
+| `components/HabitEditorModal.tsx` | `features/habits/components/HabitEditorModal.tsx` |
+
+**استثناء:** `components/Sidebar.tsx` در حال حاضر **خالی (۰ بایت)** است ولی پس از ساخت در L2-3 توسط `Dashboard.tsx` import می‌شود؛ این فایل **زنده** خواهد بود و هدفِ معتبرِ ویرایش است.
+
+**کامپوننت‌های زنده و مشترکِ معتبر در `components/`:** `BottomNav.tsx`, `Modal.tsx`, `icons.tsx`, `NetworkBanner.tsx`, `ui/ToastNotifications.tsx`, `ProfileModal.tsx`, `PaywallModal.tsx`, `Auth.tsx`, `PersianDatePicker.tsx`, `TimePicker.tsx`, `SupportTicketModal.tsx`, `Onboarding.tsx`, `Sidebar.tsx` (بعد از ساخت).
+
+> **قانون پاکسازی (اختیاری، خارج از دامنه‌ی L2):** حذفِ فیزیکیِ فایل‌های مرده امن است (unimported) ولی **در فاز بصری انجام نشود**؛ صرفاً مستند و ممنوع‌الویرایش‌اند تا بلاست‌رِیدیوس صفر بماند.
+
+---
+
+## ۷. سیستم تم (Theme System) — کلاس‌محور، با کمترین منطق
+
+> اپ زنده در حال حاضر **هیچ مکانیزم تمی ندارد** (هاردکد دارک؛ دکمه‌ی «تم دارک» در `ProfileModal` صرفاً `disabled` است). معیار پذیرش #۶ در PROJECT تمِ کارا را الزام می‌کند و `DesignSystem.md` حول لایت/دارک ساخته شده. پیاده‌سازیِ زیر **حداقلی، خوداتکا و خارج از لایه‌ی داده (services/hooks/contexts)** است؛ بنابراین قانونِ «دست‌نزدن به منطق» را نقض نمی‌کند (این منطقِ نمایشی است، نه بیزینسی).
+
+**سه جزء (همه view-layer):**
+1. **اسکریپت pre-paint در `index.html` (قبل از React):** کلاس `.dark` را بر اساس `localStorage('hexer-theme')` یا `prefers-color-scheme` روی `<html>` می‌گذارد تا از FOUC جلوگیری شود. (تسک L2-2)
+2. **پیکربندی Tailwind:** `tailwind.config = { darkMode: 'class' }` به‌صورت inline بعد از CDN — تا `dark:`های Tailwind با کلاس همگام شوند (نه سیستم‌عامل). (تسک L2-2)
+3. **هندلر toggle (فقط کلاس + localStorage):**
+```js
+const toggleTheme = () => {
+  const isDark = document.documentElement.classList.toggle('dark');
+  localStorage.setItem('hexer-theme', isDark ? 'dark' : 'light');
+};
+```
+**مهم:** برای نمایش/پنهان آیکن خورشید/ماه، **از `querySelectorAll` استفاده نشود** (ضدِ ریکت و شکننده با re-render). نمایشِ آیکن‌ها **CSS-محور** است (کلاس‌های `.theme-icon-light`/`.theme-icon-dark` که در §۲.۴ تعریف شدند، خودکار بر اساس کلاس `.dark` روی `<html>` سوییچ می‌شوند). هندلر فقط کلاس و localStorage را عوض می‌کند — بدون state ریکت، مقاوم در برابر re-render.
+
+**محل toggle:** در نسخه‌ی موبایل داخل `DashboardHeader`؛ در دسکتاپ داخل کارت پروفایلِ `Sidebar`. هر دو همان `toggleTheme` بالا را صدا می‌زنند.
+
+---
+
+## ۸. ایمنی لِی‌اوت دسکتاپ (Desktop Layout Safety) — ضدِ قیچی‌شدنِ محتوا
+
+> ماکت از shellِ «بدون اسکرولِ مقیدشده» با ارتفاع‌های ثابت (`h-[92vh]`, `h-[145px]`, `h-[200px]`, `h-[320px]`, `overflow-hidden`) استفاده می‌کند. برای یک اپِ داده‌محور (تعداد متغیرِ کار/عادت/پروژه) این **محتوا را قیچی و دسترسی‌ناپذیر می‌کند**. قوانین الزامی:
+
+1. **`overflow-hidden` روی هیچ کانتینری که لیست داده‌ی پویا دارد گذاشته نشود.** اگر ستون سرریز کرد، اسکرول داخلی (`overflow-y-auto soft-scroll`) بگذار، نه clip.
+2. **ارتفاع پیکسلیِ ثابت روی کارت‌های داده‌محور ممنوع.** از `min-h-[...]` (+ در صورت نیاز `max-h-[...]` با اسکرول داخلی) استفاده شود.
+3. **`h-screen` ممنوع؛ `100dvh` مجاز** (آنتی‌پترن #۱۱). کانتینر ریشه‌ی `MainApp` همان `h-[100dvh]` فعلی را نگه دارد.
+4. **ساختار دوسطحی:** سایدبارِ گلوبال در `App.tsx` (`flex` + `hidden lg:flex`) + گریدِ داخلیِ داشبورد `grid-cols-1 lg:grid-cols-[1fr_320px]`. ستون‌ها `min-w-0` داشته باشند تا متن طولانی گرید را نشکند.
+5. اسکرولِ سراسریِ صفحه در دسکتاپ مجاز است؛ هدفِ «بدون اسکرول» نباید به قیمتِ قیچی‌شدنِ محتوا تمام شود.
+
+---
+
+## ۹. نگاشت توکن‌ها (Token Mapping) — تک منبع حقیقت
+
+> نام‌های کانونیِ پیاده‌سازی (ستون چپ) در `index.css` و همه‌ی کامپوننت‌ها استفاده می‌شوند. ستون راست صرفاً برای ردیابیِ مفهومی با `DesignSystem.md` است (مقادیر یکی‌اند).
+
+| توکن کانونی (پیاده‌سازی) | معادل مفهومی در DesignSystem.md | مقدار (Light / Dark) |
+|--------------------------|--------------------------------|----------------------|
+| `--bg-base` | `--bg-base` | `#F4F5F7` / `#121212` |
+| `--bg-card` | `--bg-surface` | `rgba(255,255,255,0.85)` / `rgba(30,41,59,0.55)` |
+| `--text-main` | `--text-primary` | `#111827` / `#F9FAFB` |
+| `--text-muted` | `--text-secondary` | `#6B7280` / `#9CA3AF` |
+| `--border-subtle` | `--border-subtle` | `#E5E7EB` / `#334155` |
+| `--border-neon` | `--border-neon` | `transparent` / `#D8F066` |
+| `--color-primary` | `--color-primary` | `#D8F066` (هر دو) |
+| `--text-on-primary` | `--text-on-primary` | `#000000` (هر دو، قانون سخت) |
+| `--input-focus-ring` | `--input-focus-ring` | `#111827` / `#D8F066` |
+| `--shadow-card`/`--shadow-glass` | `--shadow-surface` | سایه‌ی لایت / `none` در دارک |
+| `--semantic-success` | `--semantic-success` | `#10B981` / `#22C55E` |
+| `--semantic-error` | `--semantic-error` | `#EF4444` / `#FF6B6B` |
+| `--autofill-bg` / `--autofill-text` | (جدید) | `#FFFFFF`/`#111827` / `#09090b`/`#FFFFFF` |

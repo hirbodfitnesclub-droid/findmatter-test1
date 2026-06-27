@@ -5,7 +5,7 @@ import {
   HashIcon, LightbulbIcon, ClockIcon, FileTextIcon, 
   PlusIcon, CheckIcon, ListChecksIcon 
 } from '../../../components/icons';
-import { getLinkedTasks, unlinkTaskNote } from '../../../services/linkService';
+import { getLinkedTasks, unlinkTaskNote, linkTaskNote } from '../../../services/linkService';
 import { LinkTaskPicker } from './LinkTaskPicker';
 import { useData } from '../../../contexts/DataContext';
 
@@ -13,7 +13,7 @@ interface NoteEditorModalProps {
   note: Note | Partial<Note>;
   isOpen: boolean;
   onClose: () => void;
-  onSave: (note: Note | Partial<Note>) => void;
+  onSave: (note: Note | Partial<Note>) => Promise<Note> | any;
   onDelete: (id: string) => void;
   projects: Project[];
   tasks: Task[];
@@ -34,6 +34,7 @@ export const NoteEditorModal: React.FC<NoteEditorModalProps> = ({
   const [isVisible, setIsVisible] = useState(false);
   const [tagInput, setTagInput] = useState('');
   const [linkedTasks, setLinkedTasks] = useState<Task[]>([]);
+  const [pendingLinkIds, setPendingLinkIds] = useState<string[]>([]);
   
   const isNew = !('id' in note);
 
@@ -62,6 +63,7 @@ export const NoteEditorModal: React.FC<NoteEditorModalProps> = ({
       setFormState(note);
       setIsVisible(true);
       loadLinks();
+      setPendingLinkIds([]);
     } else {
       setIsVisible(false);
     }
@@ -76,9 +78,18 @@ export const NoteEditorModal: React.FC<NoteEditorModalProps> = ({
     onClose();
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (formState.title?.trim() || formState.content?.trim()) {
-      onSave(formState);
+      try {
+        const savedNote = await onSave(formState);
+        if (isNew && savedNote && savedNote.id && pendingLinkIds.length > 0) {
+          for (const taskId of pendingLinkIds) {
+            await linkTaskNote(taskId, savedNote.id);
+          }
+        }
+      } catch (err) {
+        console.error('Error saving note and committing links:', err);
+      }
     }
     onClose();
   };
@@ -118,39 +129,64 @@ export const NoteEditorModal: React.FC<NoteEditorModalProps> = ({
     }
   };
 
-  const handleUnlink = async (taskId: string) => {
-    if (note.id) {
+  const handleAddLink = async (taskId: string) => {
+    if (isNew) {
+      setPendingLinkIds(prev => {
+        if (prev.includes(taskId)) return prev;
+        return [...prev, taskId];
+      });
+    } else if (formState.id) {
       try {
-        await unlinkTaskNote(taskId, note.id);
+        await linkTaskNote(taskId, formState.id);
         loadLinks();
       } catch (err) {
-        console.error('Error deleting task link:', err);
+        console.error('Error adding link:', err);
       }
     }
   };
+
+  const handleRemoveLink = async (taskId: string) => {
+    if (isNew) {
+      setPendingLinkIds(prev => prev.filter(id => id !== taskId));
+    } else if (formState.id) {
+      try {
+        await unlinkTaskNote(taskId, formState.id);
+        loadLinks();
+      } catch (err) {
+        console.error('Error unlinking task:', err);
+      }
+    }
+  };
+
+  const displayedTasks = React.useMemo(() => {
+    if (isNew) {
+      return tasks.filter(t => pendingLinkIds.includes(t.id));
+    }
+    return linkedTasks;
+  }, [isNew, tasks, pendingLinkIds, linkedTasks]);
 
   if (!isOpen) return null;
 
   return (
     <div 
-      className="fixed inset-0 bg-black/80 backdrop-blur-xl z-[60] flex justify-center items-end sm:items-center p-0 sm:p-4" 
+      className="fixed inset-0 bg-black/40 dark:bg-black/70 backdrop-blur-md z-[60] flex justify-center items-end sm:items-center p-0 sm:p-4" 
       role="dialog" 
       aria-modal="true" 
       onClick={handleClose}
     >
       <div
         onClick={e => e.stopPropagation()}
-        className={`w-full rounded-t-3xl sm:rounded-[2rem] bg-zinc-950 border-t sm:border border-white/5 shadow-2xl flex flex-col h-[100dvh] sm:h-[90dvh] md:max-h-[92vh] max-w-3xl transition-all duration-300 ease-out overflow-hidden relative ${
+        className={`w-full rounded-t-3xl sm:rounded-[2rem] bg-[var(--bg-card)] border-t sm:border border-[var(--border-subtle)] shadow-2xl flex flex-col h-[100dvh] sm:h-[90dvh] md:max-h-[92vh] max-w-3xl transition-all duration-300 ease-out overflow-hidden relative ${
           isVisible ? 'translate-y-0 opacity-100 scale-100' : 'translate-y-10 sm:translate-y-0 sm:scale-95 opacity-0'
         }`}
       >
         {/* 1. Header: Minimalist Actions */}
-        <div className="shrink-0 flex justify-between items-center px-6 py-4 sm:py-5 bg-zinc-950/80 backdrop-blur-md z-10 border-b border-white/5">
+        <div className="shrink-0 flex justify-between items-center px-6 py-4 sm:py-5 pt-safe bg-[var(--bg-card)]/80 backdrop-blur-md z-10 border-b border-[var(--border-subtle)]">
           <button 
             onClick={handleClose} 
-            className="group flex items-center gap-2 text-zinc-400 hover:text-white transition-colors"
+            className="group flex items-center gap-2 text-[var(--text-muted)] hover:text-[var(--text-main)] transition-colors"
           >
-            <div className="p-2 rounded-xl bg-white/5 group-hover:bg-white/10 transition-colors">
+            <div className="p-2 rounded-xl bg-[var(--nav-hover-bg)] group-hover:opacity-80 transition-colors">
               <ChevronRightIcon className="w-5 h-5" />
             </div>
             <span className="text-xs font-bold font-sans hidden sm:block">بازگشت</span>
@@ -160,7 +196,7 @@ export const NoteEditorModal: React.FC<NoteEditorModalProps> = ({
              {!isNew && (
               <button 
                 onClick={handleDelete}
-                className="p-2.5 text-red-400/70 hover:text-red-400 hover:bg-red-500/10 rounded-xl transition-all border border-transparent hover:border-red-500/15"
+                className="p-2.5 text-error hover:bg-error/10 rounded-xl transition-all border border-transparent hover:border-error/15"
                 title="حذف یادداشت"
               >
                 <TrashIcon className="w-5 h-5" />
@@ -168,7 +204,7 @@ export const NoteEditorModal: React.FC<NoteEditorModalProps> = ({
             )}
             <button 
               onClick={handleSave} 
-              className="px-6 py-2.5 bg-purple-600 hover:bg-purple-500 text-white rounded-full font-bold text-xs shadow-[0_0_20px_-5px_rgba(147,51,234,0.5)] transition-all hover:scale-103"
+              className="px-6 py-2.5 bg-lime hover:opacity-90 text-[var(--text-on-primary)] rounded-xl font-bold text-xs transition-all hover:scale-103"
             >
               {isNew ? 'ثبت یادداشت' : 'ذخیره تغییرات'}
             </button>
@@ -182,28 +218,42 @@ export const NoteEditorModal: React.FC<NoteEditorModalProps> = ({
               value={formState.title || ''}
               onChange={e => setFormState(s => ({ ...s, title: e.target.value }))}
               placeholder="عنوان ایده یا یادداشت..."
-              className="w-full bg-transparent border-none p-0 text-2xl sm:text-3.5xl font-black text-white placeholder-zinc-800 focus:ring-0 focus:outline-none leading-relaxed text-right font-sans"
+              className="w-full bg-transparent border-none p-0 text-2xl sm:text-3.5xl font-black text-[var(--text-main)] placeholder-[var(--text-muted)] focus:ring-0 focus:outline-none leading-relaxed text-right font-sans"
               autoFocus
             />
 
-            {/* TWO-WAY TASKS LINKING SECTION */}
-            <div className="py-4 border-y border-white/5 space-y-3">
+            <textarea
+              value={formState.content || ''}
+              onChange={e => setFormState(s => ({ ...s, content: e.target.value }))}
+              placeholder="شروع به نوشتن کنید..."
+              className="w-full h-[45vh] sm:h-[50vh] bg-transparent border-none p-0 text-sm sm:text-base text-[var(--text-main)] placeholder-[var(--text-muted)] focus:ring-0 focus:outline-none resize-none leading-relaxed font-light text-right"
+            />
+          </div>
+        </div>
+
+        {/* 3. Metadata Footer: The Control Center */}
+        <div className="shrink-0 bg-[var(--bg-card)]/80 backdrop-blur-2xl border-t border-[var(--border-subtle)] p-4 sm:p-6 pb-safe" dir="rtl">
+          <div className="max-w-2xl mx-auto space-y-4 max-h-[35vh] overflow-y-auto pr-1">
+            
+            {/* TWO-WAY BIDIRECTIONAL TASKS LINKING SECTION */}
+            <div className="p-4 bg-[var(--bg-card)]/40 border border-[var(--border-subtle)] rounded-2xl space-y-3">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-zinc-500 uppercase tracking-wider">کارهای لینک‌شده</span>
-                <span className="text-[10px] font-mono text-zinc-600">{linkedTasks.length} لینک شده</span>
+                <span className="text-xs font-bold text-[var(--text-muted)]">کارهای مرتبط</span>
+                <span className="text-[10px] font-mono text-[var(--text-muted)]">{displayedTasks.length} لینک شده</span>
               </div>
 
-              {linkedTasks.length > 0 ? (
+              {displayedTasks.length > 0 ? (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  {linkedTasks.map(t => (
-                    <div key={t.id} className="flex items-center justify-between p-2.5 bg-zinc-900/60 rounded-xl border border-white/5 text-right">
+                  {displayedTasks.map(t => (
+                    <div key={t.id} className="flex items-center justify-between p-2.5 bg-[var(--bg-card)] rounded-xl border border-[var(--border-subtle)] text-right">
                       <div className="flex items-center gap-2 min-w-0">
-                        <ListChecksIcon className="w-3.5 h-3.5 text-zinc-500 shrink-0" />
-                        <span className="text-xs text-zinc-300 font-medium truncate">{t.title || 'کار بدون عنوان'}</span>
+                        <ListChecksIcon className="w-3.5 h-3.5 text-[var(--text-muted)] shrink-0" />
+                        <span className="text-xs text-[var(--text-main)] font-medium truncate">{t.title || 'کار بدون عنوان'}</span>
                       </div>
                       <button
-                        onClick={() => handleUnlink(t.id)}
-                        className="p-1 hover:text-red-400 hover:bg-red-500/10 rounded text-zinc-600 transition-colors"
+                        type="button"
+                        onClick={() => handleRemoveLink(t.id)}
+                        className="p-1 hover:text-error hover:bg-error/10 rounded text-[var(--text-muted)] transition-colors"
                         title="حذف پیوند"
                       >
                         <XIcon className="w-3.5 h-3.5" />
@@ -212,51 +262,32 @@ export const NoteEditorModal: React.FC<NoteEditorModalProps> = ({
                   ))}
                 </div>
               ) : (
-                <span className="text-xs text-zinc-600 block text-right">هیچ کاری به این یادداشت لینک نشده است.</span>
+                <span className="text-[11px] text-[var(--text-muted)] block text-right">هیچ کاری به این یادداشت لینک نشده است.</span>
               )}
 
-              <div className="pt-1">
-                {!isNew && note.id ? (
-                  <LinkTaskPicker 
-                    noteId={note.id}
-                    tasks={tasks}
-                    noteCreatedAt={formState.created_at}
-                    onLinkAdded={loadLinks}
-                    linkedTaskIds={linkedTasks.map(l => l.id)}
-                  />
-                ) : (
-                  <div className="text-[11px] text-zinc-500 bg-zinc-950/40 p-2.5 rounded-xl border border-white/5 text-right font-medium">
-                    پس از ثبت یادداشت، امکان متصل کردن کار مرتبط فعال خواهد شد.
-                  </div>
-                )}
+              <div className="pt-2">
+                <LinkTaskPicker 
+                  tasks={tasks}
+                  noteCreatedAt={formState.created_at}
+                  onSelect={handleAddLink}
+                  linkedTaskIds={displayedTasks.map(l => l.id)}
+                />
               </div>
             </div>
-            <textarea
-              value={formState.content || ''}
-              onChange={e => setFormState(s => ({ ...s, content: e.target.value }))}
-              placeholder="شروع به نوشتن کنید..."
-              className="w-full h-[35vh] sm:h-[40vh] bg-transparent border-none p-0 text-sm sm:text-base text-zinc-300 placeholder-zinc-800 focus:ring-0 focus:outline-none resize-none leading-relaxed font-light text-right"
-            />
-          </div>
-        </div>
 
-        {/* 3. Metadata Footer: The Control Center */}
-        <div className="shrink-0 bg-zinc-900/80 backdrop-blur-2xl border-t border-white/5 p-4 sm:p-6 pb-20 sm:pb-6" dir="rtl">
-          <div className="max-w-2xl mx-auto space-y-4">
-            
             {/* Tags Section */}
             <div className="space-y-3">
-              <div className="flex items-center gap-2 text-zinc-500 text-[10px] font-bold uppercase tracking-wider">
-                <HashIcon className="w-3 h-3 text-zinc-600" />
+              <div className="flex items-center gap-2 text-[var(--text-muted)] text-[10px] font-bold uppercase tracking-wider">
+                <HashIcon className="w-3 h-3 text-[var(--text-muted)]" />
                 <span>برچسب‌ها</span>
               </div>
 
               {/* Active Tags & Input */}
-              <div className="flex flex-wrap items-center gap-2 bg-zinc-950/70 p-2 rounded-xl border border-white/5 focus-within:border-purple-500/30 transition-all">
+              <div className="flex flex-wrap items-center gap-2 bg-[var(--bg-card)]/50 p-2 rounded-xl border border-[var(--border-subtle)] focus-within:border-primary/30 transition-all font-sans">
                 {formState.tags?.map(tag => (
-                  <span key={tag} className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-purple-500/10 text-purple-300 border border-purple-500/15 text-xs font-semibold">
+                  <span key={tag} className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-primary/10 text-primary border border-primary/15 text-xs font-semibold">
                     {tag}
-                    <button onClick={() => removeTag(tag)} className="hover:text-white text-purple-400 transition-colors">
+                    <button type="button" onClick={() => removeTag(tag)} className="hover:text-[var(--text-main)] text-primary transition-colors">
                       <XIcon className="w-3 h-3" />
                     </button>
                   </span>
@@ -266,8 +297,8 @@ export const NoteEditorModal: React.FC<NoteEditorModalProps> = ({
                   value={tagInput}
                   onChange={e => setTagInput(e.target.value)}
                   onKeyDown={handleTagInputKeyDown}
-                  placeholder={formState.tags?.length ? "..." : "تگ جدید بنویسید (اینتر بزنید)..."}
-                  className="flex-1 bg-transparent min-w-[120px] px-2 py-1 text-xs text-white placeholder-zinc-700 focus:outline-none text-right font-medium"
+                  placeholder={formState.tags?.length ? "..." : "تگ جدید (اینتر)..."}
+                  className="flex-1 bg-transparent min-w-[120px] px-2 py-1 text-xs text-[var(--text-main)] placeholder-[var(--text-muted)] focus:outline-none text-right font-medium"
                 />
               </div>
 
@@ -277,18 +308,19 @@ export const NoteEditorModal: React.FC<NoteEditorModalProps> = ({
                   const isActive = (formState.tags || []).includes(preset.label);
                   return (
                     <button
+                      type="button"
                       key={preset.label}
                       onClick={() => togglePresetTag(preset.label)}
                       className={`
                         flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold border transition-all whitespace-nowrap
                         ${isActive 
-                          ? 'bg-zinc-100 text-zinc-900 border-zinc-100' 
-                          : 'bg-zinc-900 border-white/5 text-zinc-400 hover:border-zinc-700 hover:text-zinc-200'}
+                          ? 'bg-primary text-black border-primary' 
+                          : 'bg-[var(--bg-card)] border-[var(--border-subtle)] text-[var(--text-muted)] hover:border-primary/40 hover:text-[var(--text-main)]'}
                       `}
                     >
                       {preset.icon}
                       <span>{preset.label}</span>
-                      {isActive && <CheckIcon className="w-3 h-3 ml-0.5 text-purple-600" />}
+                      {isActive && <CheckIcon className="w-3 h-3 ml-0.5 text-black" />}
                     </button>
                   );
                 })}
@@ -296,20 +328,20 @@ export const NoteEditorModal: React.FC<NoteEditorModalProps> = ({
             </div>
 
             {/* Project Selector */}
-            <div className="pt-2 border-t border-white/5 flex flex-col sm:flex-row items-start sm:items-center gap-3">
+            <div className="pt-2 border-t border-[var(--border-subtle)] flex flex-col sm:flex-row items-start sm:items-center gap-3">
               <div className="relative group w-full sm:w-64">
-                <div className="absolute inset-y-0 right-3 flex items-center pointer-events-none text-zinc-500">
+                <div className="absolute inset-y-0 right-3 flex items-center pointer-events-none text-[var(--text-muted)]">
                   <BriefcaseIcon className="w-4 h-4" />
                 </div>
                 <select 
                   value={formState.project_id || ''} 
                   onChange={e => setFormState(s => ({...s, project_id: e.target.value || undefined}))} 
-                  className="w-full bg-zinc-950 text-zinc-300 text-xs rounded-xl py-2 px-10 border border-zinc-800 outline-none focus:border-purple-500/50 appearance-none cursor-pointer transition-all hover:border-zinc-700 text-right font-bold"
+                  className="w-full bg-[var(--bg-card)] text-[var(--text-main)] text-xs rounded-xl py-2 px-10 border border-[var(--border-subtle)] outline-none focus:border-primary appearance-none cursor-pointer transition-all hover:border-primary/40 text-right font-bold focus:ring-1 focus:ring-primary/20"
                 >
-                  <option value="" className="bg-zinc-950 text-zinc-500">اتصال به پروژه (اختیاری)</option>
-                  {projects.map(p => <option key={p.id} value={p.id} className="bg-zinc-950">{p.title}</option>)}
+                  <option value="" className="bg-[var(--bg-card)] text-[var(--text-muted)]">اتصال به پروژه (اختیاری)</option>
+                  {projects.map(p => <option key={p.id} value={p.id} className="bg-[var(--bg-card)]">{p.title}</option>)}
                 </select>
-                <ChevronDownIcon className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none text-zinc-500 group-hover:text-zinc-350 transition-colors"/>
+                <ChevronDownIcon className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none text-[var(--text-muted)] group-hover:text-[var(--text-main)] transition-colors"/>
               </div>
             </div>
           </div>

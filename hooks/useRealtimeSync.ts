@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { supabase } from '../services/supabaseClient';
-import { Task, Note, Project, Habit } from '../types';
+import { Task, Note, Project, Habit, EntityLink } from '../types';
 import * as habitService from '../services/habitService';
 import { sendBrowserNotification } from '../services/reminderService';
 import { AppNotification } from './useDataManager';
@@ -11,6 +11,7 @@ interface RealtimeSyncProps {
   setTasks: React.Dispatch<React.SetStateAction<Task[]>>;
   setNotes: React.Dispatch<React.SetStateAction<Note[]>>;
   setHabits: React.Dispatch<React.SetStateAction<Habit[]>>;
+  setEntityLinks: React.Dispatch<React.SetStateAction<EntityLink[]>>;
   addNotification: (message: string, type?: 'success' | 'error') => void;
 }
 
@@ -20,6 +21,7 @@ export const useRealtimeSync = ({
   setTasks,
   setNotes,
   setHabits,
+  setEntityLinks,
   addNotification
 }: RealtimeSyncProps) => {
   const userRef = useRef(user);
@@ -139,12 +141,37 @@ export const useRealtimeSync = ({
       schema: 'public',
       table: 'reminders',
       filter: `user_id=eq.${currentUser.id}`
-    }, (payload) => {
+    }, async (payload) => {
       const newReminder = payload.new;
-      if (newReminder) {
-        addNotification(`یادآوری: ${newReminder.title} - ${newReminder.body}`, "success");
-        sendBrowserNotification(newReminder.title, newReminder.body);
+      if (newReminder && document.visibilityState === 'visible') {
+        const { checkIfShownAndRegister } = await import('../services/reminderService');
+        const { getTehranDateString } = await import('../utils/dateUtils');
+
+        let messageId = `reminder-${newReminder.id}`;
+        if (newReminder.related_entity_type === 'task' && newReminder.related_entity_id) {
+          const dueEpoch = newReminder.remind_at ? new Date(newReminder.remind_at).getTime() : Date.now();
+          messageId = `task-${newReminder.related_entity_id}-${dueEpoch}`;
+        } else if (newReminder.related_entity_type === 'daily_nudge' || newReminder.type === 'custom') {
+          const tehranDate = newReminder.remind_at ? getTehranDateString(new Date(newReminder.remind_at)) : getTehranDateString();
+          messageId = `nudge-${newReminder.user_id}-${tehranDate}`;
+        }
+
+        const isShown = await checkIfShownAndRegister(messageId);
+        if (!isShown) {
+          addNotification(`یادآوری: ${newReminder.title} - ${newReminder.body}`, "success");
+        }
       }
+    }).subscribe();
+
+    const linkChanges = supabase.channel(`links-changes-${currentUser.id}`).on('postgres_changes', {
+      event: '*',
+      schema: 'public',
+      table: 'task_note_links',
+      filter: `user_id=eq.${currentUser.id}`
+    }, (payload) => {
+      if (payload.eventType === 'INSERT') handleInserts(payload, setEntityLinks);
+      else if (payload.eventType === 'UPDATE') handleUpdates(payload, setEntityLinks);
+      else if (payload.eventType === 'DELETE') handleDeletes(payload, setEntityLinks);
     }).subscribe();
 
     return () => {
@@ -154,6 +181,7 @@ export const useRealtimeSync = ({
       supabase.removeChannel(habitChanges);
       supabase.removeChannel(habitCompletionChanges);
       supabase.removeChannel(reminderChanges);
+      supabase.removeChannel(linkChanges);
     };
-  }, [user, setProjects, setTasks, setNotes, setHabits, addNotification]);
+  }, [user, setProjects, setTasks, setNotes, setHabits, setEntityLinks, addNotification]);
 };

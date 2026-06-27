@@ -2,17 +2,17 @@ import React, { useMemo, useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useData } from '../../contexts/DataContext';
 import { isSameTehranDay } from '../../utils/dateUtils';
-import ProfileModal from '../../components/ProfileModal';
+import { WeeklyReportModal } from './components/WeeklyReportModal';
 
 // Feature subcomponents
 import { DashboardHeader } from './components/DashboardHeader';
 import { WeekCalendar } from './components/WeekCalendar';
 import { TodaysPlan } from './components/TodaysPlan';
-import { TodaysNotes } from './components/TodaysNotes';
 import { QuickCapture } from './components/QuickCapture';
 import { StatsOverview } from './components/StatsOverview';
-import { HabitTracker } from './components/HabitTracker';
 import { KeyProjects } from './components/KeyProjects';
+import { ProductivityChart } from './components/ProductivityChart';
+import { FocusTimer } from './components/FocusTimer';
 
 const Dashboard: React.FC = () => {
   const { user, signOut } = useAuth();
@@ -25,7 +25,7 @@ const Dashboard: React.FC = () => {
     onTriggerUpgrade,
   } = useData();
 
-  const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const [isReportOpen, setIsReportOpen] = useState(false);
 
   // Calculate selected day's progress for the Header Ring
   const selectedDayProgressStats = useMemo(() => {
@@ -40,46 +40,44 @@ const Dashboard: React.FC = () => {
   }, [tasks, selectedDate]);
 
   return (
-    <div className="pb-24">
-      {/* Sticky Header with Smart Profile Ring (synced to selectedDate progress) */}
-      <DashboardHeader 
-        onOpenProfile={() => setIsProfileOpen(true)} 
-        todayProgress={selectedDayProgressStats.progress}
-        hasTasksToday={selectedDayProgressStats.hasTasks}
-      />
+    <div className="pb-2">
+      {/* هدر موبایل — فقط موبایل. پروفایل از طریق CustomEvent باز می‌شود (ProfileModal گلوبال در App است) */}
+      <div className="lg:hidden">
+        <DashboardHeader 
+          onOpenProfile={() => window.dispatchEvent(new CustomEvent('hexer:open-profile'))} 
+          todayProgress={selectedDayProgressStats.progress}
+          hasTasksToday={selectedDayProgressStats.hasTasks}
+        />
+      </div>
       
-      {/* Scrollable Content Container with Top Padding for Separation */}
-      <div className="px-4 sm:px-6 max-w-7xl mx-auto space-y-6 pt-5">
-        <WeekCalendar selectedDate={selectedDate} onDateChange={setSelectedDate} />
-        
-        <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
-          {/* Main Column (Right) */}
-          <div className="lg:col-span-3 space-y-6">
-            <TodaysPlan />
-            <TodaysNotes />
+      <div className="px-4 sm:px-6 max-w-[1280px] mx-auto pt-5 space-y-6">
+        {/* گریدِ داشبورد: موبایل ۱ ستون، دسکتاپ ۲ ستون (سایدبار از App می‌آید، نه اینجا) */}
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-4 lg:gap-6">
+          
+          {/* ستون مرکز فرمان */}
+          <div className="space-y-6 min-w-0">
             <QuickCapture />
+            <ProductivityChart />
+            <TodaysPlan />
           </div>
 
-          {/* Side Column (Left) */}
-          <div className="lg:col-span-2 space-y-6">
-            <StatsOverview />
-            <HabitTracker />
+          {/* ستون بافتار داده */}
+          <div className="space-y-6 min-w-0">
+            <StatsOverview onOpenWeeklyReport={() => setIsReportOpen(true)} />
+            <WeekCalendar selectedDate={selectedDate} onDateChange={setSelectedDate} />
             <KeyProjects />
+            <FocusTimer />
           </div>
         </div>
       </div>
 
-      <ProfileModal 
-        isOpen={isProfileOpen} 
-        onClose={() => setIsProfileOpen(false)} 
-        user={user} 
-        signOut={signOut} 
-        subscription={subscription}
-        profile={profile}
-        onTriggerUpgrade={onTriggerUpgrade}
+      <WeeklyReportModal 
+        isOpen={isReportOpen} 
+        onClose={() => setIsReportOpen(false)} 
       />
     </div>
   );
 };
 
 export default Dashboard;
+
