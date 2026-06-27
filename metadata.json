@@ -1,9 +1,11 @@
 {
-  "name": "hexer 1.76",
-  "description": "ادامه دیباگ و بهبود",
+  "name": "hexer 1.9099",
+  "description": "شروع ریفکتور و ریدیزاین کامل",
   "requestFramePermissions": [
     "microphone",
     "camera"
   ],
-  "majorCapabilities": []
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
 }

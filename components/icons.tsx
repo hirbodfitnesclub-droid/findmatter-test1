@@ -44,14 +44,12 @@ export const NotebookIcon: React.FC<IconProps> = ({ className }) => (
 );
 
 export const SparklesIcon: React.FC<IconProps> = ({ className }) => (
-    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-        <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"></path>
-        <path d="M18 10h.01"></path>
-        <path d="M12 18h.01"></path>
-        <path d="M20 14h.01"></path>
-        <path d="M6 10h.01"></path>
-        <path d="M10 6h.01"></path>
-    </svg>
+  <img 
+    src="/ai-stars.png" 
+    alt="AI Stars" 
+    className={`${className || ''} object-contain inline-block scale-[1.35] origin-center`} 
+    referrerPolicy="no-referrer" 
+  />
 );
 
 export const SendIcon: React.FC<IconProps> = ({ className }) => (
@@ -374,5 +372,22 @@ export const CopyIcon: React.FC<IconProps> = ({ className }) => (
   <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
     <rect width="14" height="14" x="8" y="8" rx="2" ry="2" />
     <path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" />
+  </svg>
+);
+
+export const InfoIcon: React.FC<IconProps> = ({ className }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <circle cx="12" cy="12" r="10"></circle>
+    <path d="M12 16v-4"></path>
+    <path d="M12 8h.01"></path>
+  </svg>
+);
+
+export const WifiIcon: React.FC<IconProps> = ({ className }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <path d="M12 20h.01"></path>
+    <path d="M8.5 16.5a5 5 0 0 1 7 0"></path>
+    <path d="M5 13a10 10 0 0 1 14 0"></path>
+    <path d="M1.5 9.5a15 15 0 0 1 21 0"></path>
   </svg>
 );

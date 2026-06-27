@@ -1,10 +1,10 @@
 import React from 'react';
-import { XIcon, CheckIcon } from '../icons';
+import { XIcon, CheckIcon, InfoIcon, WarningIcon } from '../icons';
 
 export interface AppNotification {
   id: number;
   message: string;
-  type: 'success' | 'error';
+  type: 'success' | 'error' | 'info';
   action?: {
     label: string;
     onClick: () => void;
@@ -23,19 +23,21 @@ export const ToastNotifications: React.FC<ToastNotificationsProps> = ({ notifica
         <div
           key={n.id}
           id={`toast-${n.id}`}
-          className={`flex items-center justify-between gap-4 p-4 rounded-xl shadow-2xl shadow-black/50 animate-fade-in-up border ${
-            n.type === 'success'
-              ? 'bg-green-600/20 border-green-500/30 text-green-200'
-              : 'bg-red-600/20 border-red-500/30 text-red-200'
-          } backdrop-blur-xl`}
+          className="flex items-center justify-between gap-4 p-4 rounded-xl shadow-2xl bg-[var(--bg-card)] backdrop-blur-xl border border-[var(--border-subtle)] text-[var(--text-main)] animate-fade-in-up"
         >
-          <CheckIcon className="w-6 h-6 flex-shrink-0" />
+          {n.type === 'success' ? (
+            <CheckIcon className="w-6 h-6 flex-shrink-0 text-[var(--semantic-success)]" />
+          ) : n.type === 'error' ? (
+            <WarningIcon className="w-6 h-6 flex-shrink-0 text-[var(--semantic-error)]" />
+          ) : (
+            <InfoIcon className="w-6 h-6 flex-shrink-0 text-[var(--color-primary)]" />
+          )}
           <div className="flex-1 text-sm">
-            <p className="font-semibold">{n.message}</p>
+            <p className="font-semibold text-[var(--text-main)]">{n.message}</p>
             {n.action && (
               <button
                 onClick={n.action.onClick}
-                className="mt-1 text-xs font-bold underline opacity-80 hover:opacity-100"
+                className="mt-1 text-xs font-bold underline text-[var(--color-primary)] opacity-90 hover:opacity-100 transition-opacity"
               >
                 {n.action.label}
               </button>
@@ -43,7 +45,7 @@ export const ToastNotifications: React.FC<ToastNotificationsProps> = ({ notifica
           </div>
           <button
             onClick={() => onRemove(n.id)}
-            className="p-1 opacity-60 hover:opacity-100 font-mono"
+            className="p-1 opacity-60 hover:opacity-100 font-mono text-[var(--text-muted)] hover:text-[var(--text-main)] transition-all"
             aria-label="بستن"
           >
             <XIcon className="w-5 h-5" />

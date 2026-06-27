@@ -57,7 +57,7 @@ export const WeekCalendar: React.FC<WeekCalendarProps> = ({ selectedDate, onDate
     <div className="space-y-4">
       {/* Header Info (Month Year) */}
       <div className="flex items-center justify-center mb-2">
-        <span className="text-xs font-bold text-gray-400 tracking-wide bg-gray-800/40 px-3 py-1 rounded-full border border-white/5">
+        <span className="text-xs font-bold text-[var(--text-muted)] tracking-wide bg-[var(--bg-card)] px-3 py-1 rounded-full border border-[var(--border-subtle)]">
           {headerInfo}
         </span>
       </div>
@@ -70,28 +70,28 @@ export const WeekCalendar: React.FC<WeekCalendarProps> = ({ selectedDate, onDate
             className={`
               group relative flex flex-col items-center justify-between p-1 rounded-2xl transition-all duration-300
               ${isSelected 
-                ? 'bg-gradient-to-br from-indigo-500 to-purple-600 shadow-lg shadow-purple-500/30 scale-105 z-10' 
-                : 'bg-gray-800/40 border border-white/5 hover:bg-gray-800'}
+                ? 'bg-[var(--color-primary)] border-transparent shadow-[0_4px_10px_rgba(0,0,0,0.1)] scale-105 z-10' 
+                : 'bg-[var(--bg-card)] border border-[var(--border-subtle)] hover:bg-black/5 dark:hover:bg-white/5'}
             `}
             style={{ height: '4.5rem' }}
           >
             {/* Top: Day Name */}
-            <span className={`truncate min-w-0 text-[8px] xs:text-[9px] sm:text-[10px] font-medium mt-1 ${isSelected ? 'text-white/90' : 'text-gray-500 group-hover:text-gray-400'}`}>
+            <span className={`truncate min-w-0 text-[8px] xs:text-[9px] sm:text-[10px] font-medium mt-1 ${isSelected ? 'text-black' : 'text-[var(--text-muted)] group-hover:text-[var(--text-main)]'}`}>
               {dayName}
             </span>
 
             {/* Bottom: Number Container (Nested Box) */}
             <div className={`
               w-full flex-1 flex flex-col items-center justify-center rounded-xl mt-1 py-0.5 xs:py-1
-              ${isSelected ? 'bg-black/10 backdrop-blur-sm' : 'bg-gray-900/30'}
+              ${isSelected ? 'bg-black/10' : 'bg-transparent'}
             `}>
-              <span className={`text-sm sm:text-base md:text-lg font-bold leading-none ${isSelected ? 'text-white' : 'text-gray-300'}`}>
+              <span className={`text-sm sm:text-base md:text-lg font-bold leading-none ${isSelected ? 'text-black' : 'text-[var(--text-main)] opacity-70 group-hover:opacity-100'}`}>
                 {dayNumber}
               </span>
               
               {/* Dot for today - positioned inside the inner container */}
               {isToday && (
-                <div className={`w-1 h-1 rounded-full mt-1 ${isSelected ? 'bg-white' : 'bg-sky-500'}`}></div>
+                <div className={`w-1 h-1 rounded-full mt-1 ${isSelected ? 'bg-black' : 'bg-[var(--color-primary)]'}`}></div>
               )}
             </div>
           </button>
