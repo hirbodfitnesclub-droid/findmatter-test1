@@ -161,9 +161,9 @@ const ChatView: React.FC<ChatViewProps> = ({ onEditTask, onEditNote, onEditProje
 
         // After setting messages/session:
         const draft = consumePendingDraft();
-        if (draft?.text) {
+        if (draft && (draft.text?.trim() || draft.imageFile || draft.audioFile)) {
           // Use setTimeout to ensure state is settled before triggering send
-          setTimeout(() => handleSendMessage(draft.text), 100);
+          setTimeout(() => handleSendMessage(draft.text || '', { imageFile: draft.imageFile, audioFile: draft.audioFile }), 100);
         }
       }
     } catch (err) {
@@ -245,10 +245,17 @@ const ChatView: React.FC<ChatViewProps> = ({ onEditTask, onEditNote, onEditProje
   };
 
   // --- Send Message ---
-  const handleSendMessage = async (textOverride?: string) => {
+  const handleSendMessage = async (
+    textOverride?: string,
+    mediaOverride?: { imageFile?: Blob | null; audioFile?: Blob | null }
+  ) => {
     const textToSend = textOverride || input;
     if (isReadOnly) return;
-    if ((!textToSend.trim() && !recordedAudio && !selectedImageFile) || isLoading) return;
+
+    const audioToSend = mediaOverride?.audioFile ?? recordedAudio;
+    const imageToSend = mediaOverride?.imageFile ?? selectedImageFile;
+
+    if ((!textToSend.trim() && !audioToSend && !imageToSend) || isLoading) return;
 
     if (!activeSession) {
       addNotification('گفتگو آماده نیست.', 'error');
@@ -273,7 +280,7 @@ const ChatView: React.FC<ChatViewProps> = ({ onEditTask, onEditNote, onEditProje
       }
     }
 
-    const messageText = textWithFilters || (recordedAudio ? '[پیام صوتی]' : '[تصویر]');
+    const messageText = textWithFilters || (audioToSend ? '[پیام صوتی]' : '[تصویر]');
     
     setIsLoading(true);
     setInput('');
@@ -311,12 +318,12 @@ const ChatView: React.FC<ChatViewProps> = ({ onEditTask, onEditNote, onEditProje
       setMessages(prev => [...prev, userChatMessage]);
 
       // 2. Upload attachments
-      if (recordedAudio) {
-        audioPathVal = await uploadChatMedia(recordedAudio, 'webm');
+      if (audioToSend) {
+        audioPathVal = await uploadChatMedia(audioToSend, 'webm');
       }
 
-      if (selectedImageFile) {
-        imagePathVal = await uploadChatMedia(selectedImageFile, 'jpeg');
+      if (imageToSend) {
+        imagePathVal = await uploadChatMedia(imageToSend, 'jpeg');
       }
 
       // Cleanup local fields

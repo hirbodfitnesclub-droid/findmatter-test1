@@ -58,7 +58,7 @@ const Dashboard: React.FC = () => {
           </aside>
         </div>
       ) : (
-        <div className="flex flex-col gap-6 px-5 pt-5" id="mobile-dashboard">
+        <div className="flex flex-col gap-6 px-5 pt-5 pb-bottom-nav" id="mobile-dashboard">
           <DashboardHeader 
             onOpenProfile={() => window.dispatchEvent(new CustomEvent('hexer:open-profile'))} 
             todayProgress={selectedDayProgressStats.progress}

@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { User } from '@supabase/supabase-js';
-import { UserIcon, XIcon, ShieldIcon, BellIcon, MoonIcon, LogOutIcon, DownloadIcon, UploadIcon, CheckIcon, BotIcon } from './icons';
+import { UserIcon, XIcon, ShieldIcon, BellIcon, MoonIcon, SunIcon, LogOutIcon, DownloadIcon, UploadIcon, CheckIcon, BotIcon } from './icons';
 import { exportUserData, importUserData } from '../services/backupService';
 import { requestNotificationPermission, subscribeToPush, saveSubscription } from '../services/reminderService';
 import { motion, AnimatePresence } from 'motion/react';
@@ -22,6 +22,19 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose, user, sign
     const [status, setStatus] = useState<{ type: 'success' | 'error' | 'loading' | null; message: string }>({ type: null, message: '' });
     const [isSubModalOpen, setIsSubModalOpen] = useState(false);
     const [isTicketModalOpen, setIsTicketModalOpen] = useState(false);
+    const [isDarkTheme, setIsDarkTheme] = useState(() => {
+        if (typeof window !== 'undefined') {
+            return document.documentElement.classList.contains('dark');
+        }
+        return false;
+    });
+
+    const handleToggleTheme = () => {
+        const isDark = document.documentElement.classList.toggle('dark');
+        localStorage.setItem('hexer-theme', isDark ? 'dark' : 'light');
+        document.querySelector('meta[name="theme-color"]')?.setAttribute('content', isDark ? '#121212' : '#F4F5F7');
+        setIsDarkTheme(isDark);
+    };
 
     // --- Notification States for Task H11 ---
     const [permissionState, setPermissionState] = useState<NotificationPermission>(() => 
@@ -287,12 +300,23 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose, user, sign
                                 )}
                             </AnimatePresence>
                         </div>
-                        <button disabled className="w-full flex items-center justify-between p-2.5 rounded-xl hover:bg-[var(--nav-hover-bg)] transition-all group cursor-not-allowed opacity-50">
+                        <button 
+                            type="button"
+                            onClick={handleToggleTheme}
+                            className="w-full flex items-center justify-between p-2.5 rounded-xl hover:bg-[var(--nav-hover-bg)] transition-all group cursor-pointer active:scale-[0.98]"
+                        >
                             <div className="flex items-center gap-3">
-                                <div className="p-2 bg-primary/10 rounded-lg text-primary">
-                                    <MoonIcon className="w-4 h-4" />
+                                <div className={`p-2 rounded-lg transition-colors duration-300 ${isDarkTheme ? 'bg-primary/10 text-primary' : 'bg-black/5 dark:bg-white/5 text-[var(--text-muted)]'}`}>
+                                    {isDarkTheme ? <MoonIcon className="w-4 h-4" /> : <SunIcon className="w-4 h-4" />}
                                 </div>
-                                <span className="text-xs text-[var(--text-muted)] font-bold">تم دارک 🌙</span>
+                                <div className="text-right">
+                                    <div className="text-xs text-[var(--text-main)] font-semibold">تِم هکسر</div>
+                                    <div className="text-[10px] text-[var(--text-muted)] font-medium">پوسته روشن یا تاریک</div>
+                                </div>
+                            </div>
+                            {/* Toggle Switch Pill */}
+                            <div className={`w-9 h-5 rounded-full relative transition-colors duration-300 ${isDarkTheme ? 'bg-primary' : 'bg-[var(--border-subtle)]'}`}>
+                                <div className={`absolute top-0.5 bottom-0.5 w-4 h-4 rounded-full bg-white transition-all duration-300 ${isDarkTheme ? 'left-[18px]' : 'left-0.5'}`} />
                             </div>
                         </button>
                     </div>

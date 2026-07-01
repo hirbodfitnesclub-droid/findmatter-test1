@@ -4,15 +4,60 @@ import { isSameTehranDay } from '../../../utils/dateUtils';
 import { Priority } from '../../../types';
 import { CheckIcon, ListChecksIcon } from '../../../components/icons';
 
-const formatTime = (dateInput: Date | string) => {
+const formatTime = (dateInput: Date | string | undefined | null) => {
+  if (!dateInput) return '';
   const date = typeof dateInput === 'string' ? new Date(dateInput) : dateInput;
-  if (!date || isNaN(date.getTime())) return '—';
-  const hours = date.getHours();
-  const minutes = date.getMinutes();
-  if (hours === 0 && minutes === 0) return '—';
-  const formattedHours = String(hours).padStart(2, '0').replace(/\d/g, d => '۰۱۲۳۴۵۶۷۸۹'[parseInt(d)]);
-  const formattedMinutes = String(minutes).padStart(2, '0').replace(/\d/g, d => '۰۱۲۳۴۵۶۷۸۹'[parseInt(d)]);
-  return `${formattedHours}:${formattedMinutes}`;
+  if (!date || isNaN(date.getTime())) return '';
+  try {
+    const formatter = new Intl.DateTimeFormat('en-US', {
+      timeZone: 'Asia/Tehran',
+      hour: 'numeric',
+      minute: 'numeric',
+      hour12: false
+    });
+    const timeStr = formatter.format(date);
+    const [hStr, mStr] = timeStr.split(':');
+    let h = parseInt(hStr, 10);
+    const m = parseInt(mStr, 10);
+    if (h === 24) h = 0;
+    
+    if ((h === 12 && m === 0) || (h === 0 && m === 0)) {
+      return '';
+    }
+    
+    const formattedHours = String(h).padStart(2, '0').replace(/\d/g, d => '۰۱۲۳۴۵۶۷۸۹'[parseInt(d, 10)]);
+    const formattedMinutes = String(m).padStart(2, '0').replace(/\d/g, d => '۰۱۲۳۴۵۶۷۸۹'[parseInt(d, 10)]);
+    return `${formattedHours}:${formattedMinutes}`;
+  } catch (e) {
+    console.error('Error formatting time in Asia/Tehran timezone:', e);
+    return '';
+  }
+};
+
+const getTehranDayMinutes = (dateInput: Date | string): number => {
+  const date = typeof dateInput === 'string' ? new Date(dateInput) : dateInput;
+  if (!date || isNaN(date.getTime())) return 1440;
+  try {
+    const formatter = new Intl.DateTimeFormat('en-US', {
+      timeZone: 'Asia/Tehran',
+      hour: 'numeric',
+      minute: 'numeric',
+      hour12: false
+    });
+    const timeStr = formatter.format(date);
+    const [hStr, mStr] = timeStr.split(':');
+    let h = parseInt(hStr, 10);
+    const m = parseInt(mStr, 10);
+    if (h === 24) h = 0;
+    return h * 60 + m;
+  } catch (e) {
+    return 1440;
+  }
+};
+
+const hasTime = (dueDate: Date | string | undefined | null): boolean => {
+  if (!dueDate) return false;
+  return formatTime(dueDate) !== '';
 };
 
 export const TodaysPlan: React.FC = () => {
@@ -21,16 +66,46 @@ export const TodaysPlan: React.FC = () => {
   const todaysTasks = useMemo(() => {
     return tasks
       .filter(t => t.due_date && isSameTehranDay(t.due_date, selectedDate))
-      .sort((a, b) => (a.status === 'done' ? 1 : 0) - (b.status === 'done' ? 1 : 0));
+      .sort((a, b) => {
+        // 1. Completed tasks always at the bottom
+        const aDone = a.status === 'done';
+        const bDone = b.status === 'done';
+        if (aDone !== bDone) {
+          return aDone ? 1 : -1;
+        }
+
+        // 2. Timed tasks before untimed tasks
+        const aHasTime = hasTime(a.due_date);
+        const bHasTime = hasTime(b.due_date);
+        if (aHasTime !== bHasTime) {
+          return aHasTime ? -1 : 1;
+        }
+
+        if (aHasTime) {
+          // 3. Timed tasks sorted ascending by minutes of Tehran day
+          const aMins = getTehranDayMinutes(a.due_date!);
+          const bMins = getTehranDayMinutes(b.due_date!);
+          return aMins - bMins;
+        } else {
+          // 4. Untimed tasks sorted by priority (High -> Medium -> Low)
+          const priorityWeight = (p: string | undefined | null) => {
+            if (!p) return 2;
+            const val = String(p).toLowerCase();
+            if (val === 'high') return 0;
+            if (val === 'medium') return 1;
+            return 2; // low
+          };
+          return priorityWeight(a.priority) - priorityWeight(b.priority);
+        }
+      });
   }, [tasks, selectedDate]);
 
   return (
     <div className="glass-panel rounded-[var(--radius-lg)] p-5 h-full flex flex-col" id="todays-plan-panel">
       <h2 className="text-lg font-bold text-[var(--text-main)] mb-4">برنامه امروز</h2>
       {todaysTasks.length > 0 ? (
-        <div className="flex-1 min-h-0 overflow-y-auto soft-scroll space-y-3 pl-2">
+        <div className="flex-1 min-h-0 max-h-[19rem] overflow-y-auto soft-scroll space-y-3 pl-2">
           {todaysTasks.map((task, index) => {
-            const isLast = index === todaysTasks.length - 1;
             return (
               <div 
                 key={task.id} 
@@ -39,13 +114,21 @@ export const TodaysPlan: React.FC = () => {
                 {/* Time Column (Right) */}
                 <div className="w-12 flex items-start justify-end pt-3 shrink-0">
                   <span className="font-mono font-bold text-xs text-[var(--text-muted)]">
-                    {task.due_date ? formatTime(task.due_date) : '—'}
+                    {formatTime(task.due_date)}
                   </span>
                 </div>
                 
                 {/* Axis Column (Middle) */}
                 <div className="relative flex flex-col items-center w-6 shrink-0">
-                  {!isLast && <div className="absolute top-3 bottom-0 w-[1.5px] bg-subtle"></div>}
+                  {todaysTasks.length > 1 && (
+                    index === 0 ? (
+                      <div className="absolute top-[20px] -bottom-[12px] w-[1.5px] bg-subtle z-0"></div>
+                    ) : index === todaysTasks.length - 1 ? (
+                      <div className="absolute -top-[12px] bottom-[calc(100%-20px)] w-[1.5px] bg-subtle z-0"></div>
+                    ) : (
+                      <div className="absolute -top-[12px] -bottom-[12px] w-[1.5px] bg-subtle z-0"></div>
+                    )
+                  )}
                   {task.status === 'done' ? (
                     <div className="absolute top-3 z-10 w-4 h-4 rounded-full bg-success text-white flex items-center justify-center border-2 border-subtle">
                       <CheckIcon className="w-2.5 h-2.5 text-white stroke-[3px]" />

@@ -7,7 +7,7 @@ interface StatsOverviewProps {
   onOpenWeeklyReport: () => void;
 }
 
-const dashW = (p: number) => Math.min(50, Math.max(30, Math.round(p)));
+const dashW = (p: number) => Math.min(60, Math.max(12, Math.round(p)));
 
 export const StatsOverview: React.FC<StatsOverviewProps> = ({ onOpenWeeklyReport }) => {
   const { tasks, projects, selectedDate } = useData();

@@ -88,7 +88,7 @@ export const FocusTimer: React.FC = () => {
 
   return (
     <div 
-      className="bg-[#16161a] border border-white/10 text-white rounded-[var(--radius-lg)] p-4 relative overflow-hidden min-h-[160px] flex flex-col justify-between dark:border-[var(--border-neon)] dark:shadow-[0_0_20px_rgb(var(--color-primary-rgb)/0.15)] mt-auto"
+      className="bg-[#16161a] border border-white/10 text-white rounded-[var(--radius-lg)] p-4 relative overflow-hidden min-h-[160px] flex flex-col justify-between dark:border-[var(--border-neon)] dark:shadow-[0_0_20px_rgb(var(--color-primary-rgb)/0.15)] lg:mt-auto"
       id="focus-timer-widget"
     >
       {/* Abstract background halo */}

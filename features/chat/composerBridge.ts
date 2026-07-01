@@ -1,4 +1,8 @@
-export type DraftMessage = { text: string };
+export type DraftMessage = {
+  text: string;
+  imageFile?: Blob | null;
+  audioFile?: Blob | null;
+};
 
 let pendingDraft: DraftMessage | null = null;
 
