@@ -31,6 +31,7 @@
   --color-primary-hover: #C1DB3C;
   --text-on-primary: #000000;
   --bg-base: #F4F5F7;
+  --bg-image: linear-gradient(180deg, #F4F5F7, #ECEEF2);
   --bg-app-glass: rgba(244, 245, 247, 0.6);
   --bg-panel-glass: rgba(255, 255, 255, 0.7);
   --bg-card: rgba(255, 255, 255, 0.85);
@@ -69,6 +70,7 @@
 
   /* (ب) توکن‌های مقدارِ کاملِ Hex/rgba (Override) */
   --bg-base: #121212;
+  --bg-image: linear-gradient(180deg, #121212, #0C0C0E);
   --bg-app-glass: rgba(18, 18, 20, 0.6);
   --bg-panel-glass: rgba(30, 41, 59, 0.4);
   --bg-card: rgba(30, 41, 59, 0.55);
@@ -199,19 +201,33 @@ select:-webkit-autofill:focus {
 
 /* پس‌زمینه‌ی پایه‌ی خوداتکا — بدون تصویر خارجی. یک‌بار در ریشه‌ی App اعمال می‌شود. */
 .bg-nature {
-  position: fixed;
-  inset: 0;
-  z-index: -1;
-  background: var(--bg-base);
-  transition: background 0.4s ease;
+  position: fixed; inset: 0; z-index: -1;
+  background-image: var(--bg-image);
+  background-size: cover;
+  background-position: center;
+  transition: background-image 0.8s ease-in-out;
 }
 
-/* یک هاله‌ی ملایمِ لیمویی برای عمق */
 .bg-nature::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: radial-gradient(1200px 600px at 80% -10%, rgba(216, 240, 102, 0.06), transparent 60%);
+  content: ''; position: absolute; inset: 0;
+  background: rgba(244, 245, 247, 0.1); 
+  transition: all 0.8s ease-in-out;
+}
+.dark .bg-nature::after {
+  background: rgba(12, 12, 14, 0.4); 
+}
+
+@media (max-width: 1023px) {
+  .bg-nature::after {
+    background: rgba(244, 245, 247, 0.35); 
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+  }
+  .dark .bg-nature::after {
+    background: rgba(12, 12, 14, 0.65); 
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+  }
 }
 
 .soft-scroll::-webkit-scrollbar {

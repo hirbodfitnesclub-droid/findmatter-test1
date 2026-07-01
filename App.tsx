@@ -1,6 +1,7 @@
 
 import React, { useState, useEffect, lazy, Suspense } from 'react';
 import { Page, Task, Note, Project, Habit, ActionResult } from './types';
+import { useMediaQuery } from './hooks/useMediaQuery';
 import BottomNav from './components/BottomNav';
 import Dashboard from './features/dashboard/Dashboard';
 import TasksView from './features/tasks/TasksView';
@@ -41,6 +42,7 @@ import * as billingService from './services/billingService';
 import { AnnouncementManager } from './features/announcements/AnnouncementManager';
 
 const MainApp: React.FC = () => {
+  const isDesktop = useMediaQuery('(min-width: 1024px)');
   const { user, signOut } = useAuth();
   const [isProfileOpen, setIsProfileOpen] = useState(false);
 
@@ -49,11 +51,6 @@ const MainApp: React.FC = () => {
     window.addEventListener('hexer:open-profile', handleOpenProfile);
     return () => window.removeEventListener('hexer:open-profile', handleOpenProfile);
   }, []);
-
-  const handleTriggerUpgrade = () => {
-    setPaywallMessage('جهت دسترسی نامحدود به دستیار هوشمند و قابلیت‌های مدیریت پروژه، طرح خود را ارتقا دهید.');
-    setShowPaywall(true);
-  };
   
   const {
     currentPage,
@@ -86,6 +83,7 @@ const MainApp: React.FC = () => {
     setIsOnboarding,
     editingHabit,
     setEditingHabit,
+    onTriggerUpgrade,
     // Operations
     addProject,
     updateProject,
@@ -234,19 +232,7 @@ const MainApp: React.FC = () => {
     
     switch (currentPage) {
       case Page.Dashboard:
-        return (
-          <Dashboard 
-            tasks={tasks} notes={notes} projects={projects} habits={habits}
-            toggleHabitCompletion={toggleHabitCompletion} toggleTaskCompletion={toggleTaskCompletion}
-            selectedDate={selectedDate} setSelectedDate={setSelectedDate}
-            addTask={addTask} addNote={addNote}
-            editHabit={setEditingHabit}
-            subscription={subscription}
-            profile={profile}
-            onTriggerUpgrade={handleTriggerUpgrade}
-          />
-        );
-      case Page.PageContainer:
+        return <Dashboard />;
       case Page.Tasks:
         return (
           <TasksView 
@@ -285,18 +271,7 @@ const MainApp: React.FC = () => {
           </Suspense>
         );
       default:
-        return (
-          <Dashboard 
-            tasks={tasks} notes={notes} projects={projects} habits={habits}
-            toggleHabitCompletion={toggleHabitCompletion} toggleTaskCompletion={toggleTaskCompletion}
-            selectedDate={selectedDate} setSelectedDate={setSelectedDate}
-            addTask={addTask} addNote={addNote}
-            editHabit={setEditingHabit}
-            subscription={subscription}
-            profile={profile}
-            onTriggerUpgrade={handleTriggerUpgrade}
-          />
-        );
+        return <Dashboard />;
     }
   };
 
@@ -315,19 +290,31 @@ const MainApp: React.FC = () => {
   }
 
   return (
-    <div className="relative flex h-[100dvh] bg-[var(--bg-base)] text-main" id="main-app-container">
-      <Sidebar currentPage={currentPage} setPage={setCurrentPage} onOpenProfile={() => setIsProfileOpen(true)} className="hidden lg:flex shrink-0" />
-      <div className="flex-1 flex flex-col min-w-0">
-        <NetworkBanner />
-        <main className="flex-1 overflow-y-auto overflow-x-hidden pb-bottom-nav lg:pb-6" id="view-viewport">
-          {renderContent()}
-        </main>
-      </div>
+    <div className="relative flex h-[100dvh] text-main" id="main-app-container">
+      {isDesktop ? (
+        /* شِلِ گلسِ بانددارِ دسکتاپ (دقیقاً مثل پروتوتایپ) */
+        <div className="hidden lg:flex fixed inset-0 z-10 items-center justify-center px-6 xl:px-10 overflow-hidden">
+          <main className="glass-app w-full max-w-[1280px] h-[92vh] max-h-[860px] rounded-[32px] p-4 flex gap-4 overflow-hidden">
+            <Sidebar currentPage={currentPage} setPage={setCurrentPage} onOpenProfile={() => setIsProfileOpen(true)} className="shrink-0" />
+            <div className="flex-1 min-w-0 h-full overflow-y-auto soft-scroll pb-6" id="view-viewport">
+              <NetworkBanner />
+              {renderContent()}
+            </div>
+          </main>
+        </div>
+      ) : (
+        /* لِی‌اوتِ موبایل (اسکرولیِ سیال) */
+        <div className="flex-1 flex flex-col min-w-0 relative z-10">
+          <NetworkBanner />
+          <main className="flex-1 overflow-y-auto overflow-x-hidden pb-bottom-nav" id="view-viewport">
+            {renderContent()}
+          </main>
+          <BottomNav currentPage={currentPage} setPage={setCurrentPage} />
+        </div>
+      )}
+
       <ToastNotifications notifications={notifications} onRemove={removeNotification} />
-      <div className="lg:hidden">
-        <BottomNav currentPage={currentPage} setPage={setCurrentPage} />
-      </div>
-      
+
       {/* Global Modals triggered from Chat, Sidebar & Lists */}
       <ProfileModal
         isOpen={isProfileOpen}
@@ -336,7 +323,7 @@ const MainApp: React.FC = () => {
         signOut={signOut}
         subscription={subscription}
         profile={profile}
-        onTriggerUpgrade={handleTriggerUpgrade}
+        onTriggerUpgrade={onTriggerUpgrade}
       />
       {editingTask && (
         <TaskEditorModal 
