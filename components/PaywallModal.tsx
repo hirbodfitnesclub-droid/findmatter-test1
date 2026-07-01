@@ -82,7 +82,7 @@ export const PaywallModal: React.FC<PaywallModalProps> = ({ isOpen, onClose, cur
         'بارگذاری مستقیم تصاویر و صوت'
       ],
       popular: true,
-      color: 'border-primary/40 bg-[var(--bg-card)] text-[var(--text-main)] ring-1 ring-primary/20 shadow-[0_0_20px_rgba(var(--color-primary-rgb),0.15)]',
+      color: 'border-primary/40 bg-[var(--bg-card)] text-[var(--text-main)] ring-1 ring-primary/20 shadow-[0_0_20px_rgb(var(--color-primary-rgb)/0.15)]',
       tag: 'پیشنهاد هکسر ⚡',
       tagColor: 'bg-primary text-[var(--text-on-primary)] font-black'
     },

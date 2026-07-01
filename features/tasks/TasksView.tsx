@@ -327,7 +327,7 @@ export const TasksView: React.FC = () => {
       {/* Floating Add Button */}
       <button 
         onClick={handleAddNewTask} 
-        className="fixed bottom-[calc(var(--bottom-nav-space)+var(--safe-area-inset-bottom)+1rem)] right-5 w-14 h-14 bg-lime rounded-full flex items-center justify-center text-[var(--text-on-primary)] shadow-[0_0_15px_rgba(216,240,102,0.3)] hover:scale-105 transition-all duration-300 z-30" 
+        className="fixed bottom-[calc(var(--bottom-nav-space)+var(--safe-area-inset-bottom)+1rem)] right-5 w-14 h-14 bg-lime rounded-full flex items-center justify-center text-[var(--text-on-primary)] shadow-[0_0_15px_rgb(var(--color-primary-rgb)/0.3)] hover:scale-105 transition-all duration-300 z-30" 
         aria-label="Add new task"
       >
         <PlusIcon className="w-7 h-7"/>

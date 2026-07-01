@@ -43,7 +43,7 @@ export const ChatHistoryDrawer: React.FC<ChatHistoryDrawerProps> = ({
   return (
     <div className="fixed inset-0 z-[60] flex items-end justify-center bg-black/40 dark:bg-black/70 backdrop-blur-md transition-opacity">
       <div className="absolute inset-0" onClick={onClose}></div>
-      <div className="relative w-full max-w-lg bg-[var(--bg-card)] border-t border-[var(--border-subtle)] rounded-t-3xl shadow-2xl flex flex-col max-h-[80vh] z-10 animate-fade-in-up">
+      <div className="relative w-full max-w-lg bg-[var(--bg-card)] border-t border-[var(--border-subtle)] rounded-t-3xl shadow-2xl flex flex-col max-h-[80vh] z-10 transition-all duration-300">
         {/* Header */}
         <div className="p-4 border-b border-[var(--border-subtle)] flex justify-between items-center sticky top-0 bg-[var(--bg-card)] z-20 rounded-t-3xl">
           <h3 className="text-sm font-bold text-[var(--text-main)] flex items-center gap-2">
@@ -82,11 +82,11 @@ export const ChatHistoryDrawer: React.FC<ChatHistoryDrawerProps> = ({
                     className={`w-full flex items-center justify-between p-3.5 rounded-xl border text-right transition-all ${
                       isActive
                         ? 'bg-primary/10 border-primary text-[var(--text-main)] font-bold'
-                        : 'bg-[var(--bg-card)] backdrop-blur-xl border border-[var(--border-subtle)] hover:bg-[var(--nav-hover-bg)] text-[var(--text-muted)]'
+                        : 'glass-card border-subtle text-[var(--text-muted)] hover:bg-[var(--nav-hover-bg)]'
                     }`}
                   >
                     <div className="flex items-center gap-3">
-                      <div className={`p-2 rounded-lg ${isActive ? 'bg-primary/20 text-primary' : 'bg-[var(--bg-card)] border border-[var(--border-subtle)] text-[var(--text-muted)]'}`}>
+                      <div className={`p-2 rounded-lg ${isActive ? 'bg-primary/20 text-primary' : 'glass-card border-subtle text-[var(--text-muted)]'}`}>
                         <CalendarIcon className="w-4 h-4" />
                       </div>
                       <div>

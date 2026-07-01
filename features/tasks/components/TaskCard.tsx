@@ -79,7 +79,7 @@ export const TaskCard: React.FC<TaskCardProps> = React.memo(({ task, onToggle, o
                 task.project.color === 'red' ? 'bg-red-500' :
                 task.project.color === 'yellow' ? 'bg-yellow-500' :
                 task.project.color === 'blue' ? 'bg-blue-500' :
-                task.project.color === 'green' ? 'bg-green-500' : 'bg-sky-500'
+                task.project.color === 'green' ? 'bg-success' : 'bg-primary'
               }`}></div>
               <span className="text-[var(--text-muted)] font-semibold">{task.project.title}</span>
             </div>

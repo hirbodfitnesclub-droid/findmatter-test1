@@ -131,7 +131,7 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose, user, sign
 
     return (
         <div 
-            className="fixed inset-0 bg-black/40 dark:bg-black/70 backdrop-blur-md flex items-end sm:items-center justify-center z-[90] p-0 sm:p-4 transition-all duration-300 animate-fade-in"
+            className="fixed inset-0 bg-black/40 dark:bg-black/70 backdrop-blur-md flex items-end sm:items-center justify-center z-[90] p-0 sm:p-4 transition-all duration-300 transition-opacity duration-300"
             onClick={onClose}
         >
             <div 
@@ -172,7 +172,7 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose, user, sign
                     
                     {/* Status Feedback banner */}
                     {status.type && (
-                        <div className={`p-3 rounded-xl text-[11px] font-bold flex items-center gap-2 animate-fade-in ${
+                        <div className={`p-3 rounded-xl text-[11px] font-bold flex items-center gap-2 transition-opacity duration-300 ${
                             status.type === 'loading' ? 'bg-primary/10 text-primary border border-primary/20' :
                             status.type === 'success' ? 'bg-success/10 text-success border border-success/20' :
                             'bg-error/10 text-error border border-error/20'

@@ -111,7 +111,7 @@ export const NotesView: React.FC = () => {
       {/* Floating Action Button */}
       <button 
         onClick={openModalForNew} 
-        className="fixed bottom-[calc(var(--bottom-nav-space)+var(--safe-area-inset-bottom)+1rem)] right-5 w-14 h-14 bg-lime text-[var(--text-on-primary)] rounded-full flex items-center justify-center shadow-[0_0_15px_rgba(216,240,102,0.3)] hover:scale-105 transition-all duration-300 z-40"
+        className="fixed bottom-[calc(var(--bottom-nav-space)+var(--safe-area-inset-bottom)+1rem)] right-5 w-14 h-14 bg-lime text-[var(--text-on-primary)] rounded-full flex items-center justify-center shadow-[0_0_15px_rgb(var(--color-primary-rgb)/0.3)] hover:scale-105 transition-all duration-300 z-40"
         aria-label="New Note"
       >
         <PlusIcon className="w-7 h-7"/>

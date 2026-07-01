@@ -34,7 +34,7 @@ export const ActionResultCard: React.FC<ActionResultCardProps> = ({ result, onCl
     <div className="mt-3 flex">
       <button 
         onClick={() => onClick(result)}
-        className="flex items-center gap-3 bg-[var(--bg-card)] backdrop-blur-xl border border-[var(--border-subtle)] p-3 rounded-xl hover:bg-[var(--nav-hover-bg)] transition-all group w-full sm:w-auto min-w-[200px]"
+        className="flex items-center gap-3 glass-card border-subtle p-3 rounded-xl hover:bg-[var(--nav-hover-bg)] transition-all group w-full sm:w-auto min-w-[200px]"
       >
         <div className="w-10 h-10 rounded-lg bg-primary flex items-center justify-center shadow-lg shadow-primary/10">
           {icon}

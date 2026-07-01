@@ -10,6 +10,7 @@ import { compressImage, dataURLtoBlob } from '../../utils/imageUtils';
 import { useMediaRecorder } from './hooks/useMediaRecorder';
 import { getTehranDateString } from '../../utils/dateUtils';
 import { linkTaskNote } from '../../services/linkService';
+import { consumePendingDraft } from './composerBridge';
 
 // Helper to sanitize chat history to prevent leak of UUID database keys to Gemini model
 const sanitizeHistoryMessage = (text: string): string => {
@@ -156,6 +157,13 @@ const ChatView: React.FC<ChatViewProps> = ({ onEditTask, onEditNote, onEditProje
           setMessages([
             { id: 'initial', sender: 'ai', text: 'سلام! خوش آمدید. چطور می‌توانم در مدیریت کارهایتان به شما کمک کنم؟' }
           ]);
+        }
+
+        // After setting messages/session:
+        const draft = consumePendingDraft();
+        if (draft?.text) {
+          // Use setTimeout to ensure state is settled before triggering send
+          setTimeout(() => handleSendMessage(draft.text), 100);
         }
       }
     } catch (err) {
@@ -592,7 +600,7 @@ const ChatView: React.FC<ChatViewProps> = ({ onEditTask, onEditNote, onEditProje
                 onClick={() => setFilterType('all')}
                 className={`px-2.5 py-1 rounded-md text-[10px] font-medium transition-all shrink-0 cursor-pointer ${
                   filterType === 'all'
-                    ? 'bg-primary text-[var(--text-on-primary)] border border-transparent font-semibold shadow-[0_0_15px_rgba(var(--color-primary-rgb),0.15)]'
+                    ? 'bg-primary text-[var(--text-on-primary)] border border-transparent font-semibold shadow-[0_0_15px_rgb(var(--color-primary-rgb)/0.15)]'
                     : 'bg-[var(--bg-card)] backdrop-blur-xl border border-[var(--border-subtle)] text-[var(--text-muted)] hover:bg-[var(--nav-hover-bg)] hover:text-[var(--text-main)]'
                 }`}
               >
@@ -640,7 +648,7 @@ const ChatView: React.FC<ChatViewProps> = ({ onEditTask, onEditNote, onEditProje
                 onClick={() => setFilterTime('all')}
                 className={`px-2.5 py-1 rounded-md text-[10px] font-medium transition-all shrink-0 cursor-pointer ${
                   filterTime === 'all'
-                    ? 'bg-primary text-[var(--text-on-primary)] border border-transparent font-semibold shadow-[0_0_15px_rgba(var(--color-primary-rgb),0.15)]'
+                    ? 'bg-primary text-[var(--text-on-primary)] border border-transparent font-semibold shadow-[0_0_15px_rgb(var(--color-primary-rgb)/0.15)]'
                     : 'bg-[var(--bg-card)] backdrop-blur-xl border border-[var(--border-subtle)] text-[var(--text-muted)] hover:bg-[var(--nav-hover-bg)] hover:text-[var(--text-main)]'
                 }`}
               >
@@ -676,7 +684,7 @@ const ChatView: React.FC<ChatViewProps> = ({ onEditTask, onEditNote, onEditProje
       {/* Messages Scroll Area */}
       <div className="flex-1 overflow-y-auto p-4 space-y-6">
         {messages.length === 1 && (
-          <div className="flex flex-col items-center justify-center py-10 opacity-100 animate-fade-in-up">
+          <div className="flex flex-col items-center justify-center py-10 opacity-100 transition-opacity duration-300">
             <div className="w-20 h-20 bg-[var(--bg-card)] backdrop-blur-xl border border-[var(--border-subtle)] rounded-full flex items-center justify-center mb-6 relative">
               <div className="absolute inset-0 bg-primary/20 rounded-full animate-pulse"></div>
               <BotIcon className="w-10 h-10 text-primary" />
@@ -704,17 +712,17 @@ const ChatView: React.FC<ChatViewProps> = ({ onEditTask, onEditNote, onEditProje
         {messages.slice(1).map((msg) => (
           <div
             key={msg.id}
-            className={`flex items-start gap-3 ${msg.sender === 'user' ? 'flex-row-reverse' : ''} animate-fade-in-up`}
+            className={`flex items-start gap-3 ${msg.sender === 'user' ? 'flex-row-reverse' : ''} transition-opacity duration-300`}
           >
-            <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${msg.sender === 'user' ? 'bg-primary/20 text-primary border border-primary/30' : 'bg-[var(--bg-card)] backdrop-blur-xl border border-[var(--border-subtle)] text-[var(--text-muted)]'}`}>
+            <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${msg.sender === 'user' ? 'bg-primary/20 text-primary border border-primary/30' : 'glass-card text-[var(--text-muted)]'}`}>
               {msg.sender === 'user' ? <UserIcon className="w-5 h-5 text-primary" /> : <BotIcon className="w-5 h-5 text-[var(--text-muted)]" />}
             </div>
             
             <div className={`flex flex-col gap-2 max-w-[85%] ${msg.sender === 'user' ? 'items-end' : 'items-start'}`}>
               <div className={`p-3.5 rounded-2xl text-sm leading-6 ${
                 msg.sender === 'user' 
-                  ? 'bg-primary text-[var(--text-on-primary)] rounded-tr-none text-right shadow-[0_0_15px_rgba(var(--color-primary-rgb),0.15)]' 
-                  : 'bg-[var(--bg-card)] backdrop-blur-xl border border-[var(--border-subtle)] rounded-tl-none text-right text-[var(--text-main)]'
+                  ? 'bg-lime text-[var(--text-on-primary)] rounded-tr-none text-right shadow-[0_0_15px_rgb(var(--color-primary-rgb)/0.15)]' 
+                  : 'glass-card rounded-tl-none text-right text-[var(--text-main)]'
               }`} dir="rtl">
                 {msg.text}
               </div>
@@ -863,7 +871,7 @@ const ChatView: React.FC<ChatViewProps> = ({ onEditTask, onEditNote, onEditProje
         )}
 
         <div className={`relative flex items-center border transition-colors rounded-2xl p-1.5 ${
-          isRecording ? 'border-red-500/50 bg-[var(--semantic-error-soft)]' : 'border-[var(--border-subtle)] focus-within:border-primary/50 bg-[var(--bg-card)]'
+          isRecording ? 'border-error/50 bg-[var(--semantic-error-soft)]' : 'glass-card border-[var(--border-subtle)] focus-within:border-primary/50'
         }`}>
           {recordedAudio ? (
             // Recorded Audio confirmation bubble
@@ -883,7 +891,7 @@ const ChatView: React.FC<ChatViewProps> = ({ onEditTask, onEditNote, onEditProje
               <button
                 onClick={processAndSendAudio}
                 disabled={isLoading || isReadOnly}
-                className="p-2.5 bg-primary text-[var(--text-on-primary)] rounded-xl hover:bg-[var(--color-primary-hover)] transition-colors shadow-[0_0_15px_rgba(var(--color-primary-rgb),0.3)] animate-pulse"
+                className="p-2.5 bg-lime text-[var(--text-on-primary)] rounded-xl hover:bg-[var(--color-primary-hover)] transition-colors shadow-[0_0_15px_rgb(var(--color-primary-rgb)/0.3)] animate-pulse"
                 title="ارسال پیام صوتی"
               >
                 <SendIcon className="w-5 h-5 transform rotate-180 text-[var(--text-on-primary)]" />
@@ -906,7 +914,7 @@ const ChatView: React.FC<ChatViewProps> = ({ onEditTask, onEditNote, onEditProje
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
                 placeholder={isRecording ? "در حال ضبط صدا..." : isReadOnly ? "برای چت روی بازگشت به امروز کلیک کنید..." : selectedImagePreview ? "توضیحی بنویسید..." : "پیامی به دستیار بفرستید..."}
-                className="flex-1 bg-transparent text-[var(--text-main)] placeholder-[var(--text-muted)] px-3 py-2 focus:outline-none disabled:opacity-50 text-right dir-rtl"
+                className="flex-1 bg-transparent text-[var(--text-main)] placeholder-[var(--text-muted)] px-3 py-2 focus:outline-none disabled:opacity-50 text-right"
                 disabled={isLoading || isRecording || isReadOnly}
                 dir="rtl"
               />
@@ -915,7 +923,7 @@ const ChatView: React.FC<ChatViewProps> = ({ onEditTask, onEditNote, onEditProje
                 <button
                   onClick={() => handleSendMessage()}
                   disabled={isLoading || isReadOnly}
-                  className="p-2.5 bg-primary text-[var(--text-on-primary)] rounded-xl hover:bg-[var(--color-primary-hover)] transition-colors shadow-[0_0_15px_rgba(var(--color-primary-rgb),0.3)] disabled:opacity-50"
+                  className="p-2.5 bg-lime text-[var(--text-on-primary)] rounded-xl hover:bg-[var(--color-primary-hover)] transition-colors shadow-[0_0_15px_rgb(var(--color-primary-rgb)/0.3)] disabled:opacity-50"
                 >
                   <SendIcon className="w-5 h-5 text-[var(--text-on-primary)]" />
                 </button>

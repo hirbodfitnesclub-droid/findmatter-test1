@@ -3,7 +3,6 @@ import { useData } from '../../../contexts/DataContext';
 import { isSameTehranDay } from '../../../utils/dateUtils';
 import { Priority } from '../../../types';
 import { CheckIcon, ListChecksIcon } from '../../../components/icons';
-import { WidgetContainer } from './WidgetContainer';
 
 const formatTime = (dateInput: Date | string) => {
   const date = typeof dateInput === 'string' ? new Date(dateInput) : dateInput;
@@ -26,10 +25,10 @@ export const TodaysPlan: React.FC = () => {
   }, [tasks, selectedDate]);
 
   return (
-    <WidgetContainer>
+    <div className="glass-panel rounded-[var(--radius-lg)] p-5 h-full flex flex-col" id="todays-plan-panel">
       <h2 className="text-lg font-bold text-[var(--text-main)] mb-4">برنامه امروز</h2>
       {todaysTasks.length > 0 ? (
-        <div className="max-h-64 overflow-y-auto pl-2 space-y-3">
+        <div className="flex-1 min-h-0 overflow-y-auto soft-scroll space-y-3 pl-2">
           {todaysTasks.map((task, index) => {
             const isLast = index === todaysTasks.length - 1;
             return (
@@ -46,20 +45,20 @@ export const TodaysPlan: React.FC = () => {
                 
                 {/* Axis Column (Middle) */}
                 <div className="relative flex flex-col items-center w-6 shrink-0">
-                  {!isLast && <div className="absolute top-3 bottom-0 w-[1.5px] bg-[var(--border-subtle)]"></div>}
+                  {!isLast && <div className="absolute top-3 bottom-0 w-[1.5px] bg-subtle"></div>}
                   {task.status === 'done' ? (
-                    <div className="absolute top-3 z-10 w-4 h-4 rounded-full bg-[var(--semantic-success)] text-white flex items-center justify-center border-2 border-[var(--border-subtle)]">
+                    <div className="absolute top-3 z-10 w-4 h-4 rounded-full bg-success text-white flex items-center justify-center border-2 border-subtle">
                       <CheckIcon className="w-2.5 h-2.5 text-white stroke-[3px]" />
                     </div>
                   ) : (
-                    <div className="absolute top-3 z-10 w-4 h-4 rounded-full bg-[var(--color-primary)] text-black flex items-center justify-center border-2 border-[var(--border-subtle)]">
+                    <div className="absolute top-3 z-10 w-4 h-4 rounded-full bg-primary text-black flex items-center justify-center border-2 border-subtle">
                       <div className="w-1.5 h-1.5 rounded-full bg-black"></div>
                     </div>
                   )}
                 </div>
 
                 {/* Card Column (Left) */}
-                <div className="flex-1 bg-[var(--bg-card)] backdrop-blur-xl border border-[var(--border-subtle)] p-3 rounded-[var(--radius-md)] flex items-center gap-3">
+                <div className="flex-1 glass-card p-3 rounded-[var(--radius-md)] flex items-center gap-3">
                   <button
                     onClick={() => toggleTaskCompletion(task.id)}
                     className={`task-check w-5 h-5 shrink-0 rounded-full border-[1.5px] flex items-center justify-center transition ${task.status === 'done' ? 'is-done' : 'border-[var(--text-muted)] hover:border-[var(--text-main)]'}`}
@@ -90,6 +89,6 @@ export const TodaysPlan: React.FC = () => {
           <p>در این تاریخ کاری ثبت نشده است.</p>
         </div>
       )}
-    </WidgetContainer>
+    </div>
   );
 };

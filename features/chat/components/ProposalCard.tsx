@@ -54,7 +54,7 @@ export const ProposalCard: React.FC<ProposalCardProps> = ({
   if (proposals.length === 0) return null;
 
   return (
-    <div className="mt-4 bg-[var(--bg-card)] backdrop-blur-xl border border-[var(--border-subtle)] rounded-2xl p-4 w-full">
+    <div className="mt-4 glass-card border-subtle rounded-2xl p-4 w-full">
       <div className="flex justify-between items-center mb-3">
         <h4 className="text-sm font-bold text-primary flex items-center gap-1.5">
           <ListChecksIcon className="w-4 h-4" />
@@ -63,7 +63,7 @@ export const ProposalCard: React.FC<ProposalCardProps> = ({
         {pendingProposals.length > 0 && (
           <button
             onClick={onApproveAll}
-            className="text-xs bg-primary hover:bg-primary-hover font-bold px-3 py-1.5 rounded-lg text-on-primary transition-all shadow-[0_0_15px_rgba(216,240,102,0.3)]"
+            className="text-xs bg-lime hover:bg-[var(--color-primary-hover)] font-bold px-3 py-1.5 rounded-lg text-[var(--text-on-primary)] transition-all shadow-[0_0_15px_rgb(var(--color-primary-rgb)/0.3)]"
           >
             تأیید همه پیشنهادات
           </button>
@@ -85,7 +85,7 @@ export const ProposalCard: React.FC<ProposalCardProps> = ({
                   ? 'bg-primary/5 border-[var(--border-neon)]' 
                   : isRejected 
                     ? 'bg-[var(--semantic-error-soft)] border-error/20 opacity-50' 
-                    : 'bg-[var(--bg-card)] border-[var(--border-subtle)] backdrop-blur-xl hover:border-primary/30'
+                    : 'glass-card border-subtle hover:border-primary/30'
               }`}
             >
               <div className="flex justify-between items-start mb-2">
@@ -212,14 +212,14 @@ export const ProposalCard: React.FC<ProposalCardProps> = ({
 
                   <div className="flex justify-end gap-1.5 pt-1">
                     <button
-                      onClick={() => handleSaveEdit(prop.id, prop.kind)}
-                      className="text-xs bg-primary hover:bg-primary-hover font-bold px-3 py-1.5 rounded-lg text-on-primary transition-all shadow-[0_0_15px_rgba(216,240,102,0.15)]"
+                       onClick={() => handleSaveEdit(prop.id, prop.kind)}
+                       className="text-xs bg-lime hover:bg-[var(--color-primary-hover)] font-bold px-3 py-1.5 rounded-lg text-[var(--text-on-primary)] transition-all shadow-[0_0_15px_rgb(var(--color-primary-rgb)/0.15)]"
                     >
                       ذخیره پیش‌نویس
                     </button>
                     <button
                       onClick={() => setEditingId(null)}
-                      className="text-xs bg-[var(--bg-card)] backdrop-blur-xl border border-[var(--border-subtle)] hover:bg-[var(--nav-hover-bg)] font-bold px-3 py-1.5 rounded-lg text-main transition-all"
+                      className="text-xs glass-card border-subtle hover:bg-[var(--nav-hover-bg)] font-bold px-3 py-1.5 rounded-lg text-main transition-all"
                     >
                       انصراف
                     </button>

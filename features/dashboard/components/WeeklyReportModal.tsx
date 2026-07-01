@@ -105,9 +105,9 @@ export const WeeklyReportModal: React.FC<WeeklyReportModalProps> = ({ isOpen, on
   // Background color / text for health rating
   const healthRating = useMemo(() => {
     const score = stats.healthScore;
-    if (score >= 80) return { label: 'عالی', color: 'text-[var(--semantic-success)]', bg: 'bg-[var(--color-primary)]/10 border-[var(--border-subtle)]' };
-    if (score >= 50) return { label: 'خوب', color: 'text-[var(--color-primary)]', bg: 'bg-[var(--color-primary)]/10 border-[var(--border-subtle)]' };
-    if (score >= 20) return { label: 'نیاز به بهبود', color: 'text-[var(--color-primary)]', bg: 'bg-[var(--color-primary)]/10 border-[var(--border-subtle)]' };
+    if (score >= 80) return { label: 'عالی', color: 'text-[var(--semantic-success)]', bg: 'bg-primary/10 border-[var(--border-subtle)]' };
+    if (score >= 50) return { label: 'خوب', color: 'text-[var(--semantic-success)]', bg: 'bg-primary/10 border-[var(--border-subtle)]' };
+    if (score >= 20) return { label: 'نیاز به بهبود', color: 'text-[var(--semantic-warning)]', bg: 'bg-primary/10 border-[var(--border-subtle)]' };
     return { label: 'بحرانی', color: 'text-[var(--semantic-error)]', bg: 'bg-[var(--semantic-error-soft)] border-[var(--border-subtle)]' };
   }, [stats.healthScore]);
 
@@ -137,7 +137,7 @@ export const WeeklyReportModal: React.FC<WeeklyReportModalProps> = ({ isOpen, on
           <div className="p-6 border-b border-[var(--border-subtle)] flex items-center justify-between flex-shrink-0">
             <div>
               <h3 className="text-xl font-bold text-[var(--text-main)] flex items-center gap-2">
-                <ClipboardListIcon className="w-5 h-5 text-[var(--color-primary)]" />
+                <ClipboardListIcon className="w-5 h-5 text-[var(--text-main)] dark:text-[var(--color-primary)]" />
                 گزارش عملکرد هفتگی
               </h3>
               <p className="text-xs text-[var(--text-muted)] mt-1">
@@ -211,7 +211,7 @@ export const WeeklyReportModal: React.FC<WeeklyReportModalProps> = ({ isOpen, on
                 <span className="text-[10px] text-[var(--text-muted)] block mt-1">به‌موقع</span>
               </div>
               <div className="bg-[var(--bg-card)] border border-[var(--border-subtle)] shadow-[var(--shadow-card)] rounded-xl p-3 text-center">
-                <span className="text-2xl font-black text-[var(--color-primary)] block font-mono">{stats.delayedDoneCount}</span>
+                <span className="text-2xl font-black text-[var(--text-main)] block font-mono">{stats.delayedDoneCount}</span>
                 <span className="text-[10px] text-[var(--text-muted)] block mt-1">با تاخیر</span>
               </div>
             </div>
@@ -289,7 +289,7 @@ export const WeeklyReportModal: React.FC<WeeklyReportModalProps> = ({ isOpen, on
                                 انجام با تاخیر
                               </span>
                             ) : (
-                              <span className="bg-[var(--color-primary)]/10 text-[var(--color-primary)] border border-[var(--border-neon)] text-[9px] font-bold px-2 py-0.5 rounded-md flex-shrink-0">
+                              <span className="bg-primary/10 text-[var(--text-main)] border border-[var(--border-subtle)] text-[9px] font-bold px-2 py-0.5 rounded-md flex-shrink-0">
                                 به‌موقع
                               </span>
                             )}
@@ -337,7 +337,7 @@ export const WeeklyReportModal: React.FC<WeeklyReportModalProps> = ({ isOpen, on
                                 عقب افتاده
                               </span>
                             ) : (
-                              <span className="bg-[var(--color-primary)]/10 text-[var(--color-primary)] border border-[var(--border-neon)] text-[9px] font-bold px-2 py-0.5 rounded-md flex-shrink-0">
+                              <span className="bg-primary/10 text-[var(--text-main)] border border-[var(--border-subtle)] text-[9px] font-bold px-2 py-0.5 rounded-md flex-shrink-0">
                                 در جریان
                               </span>
                             )}

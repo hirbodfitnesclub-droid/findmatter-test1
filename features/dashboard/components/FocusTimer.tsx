@@ -1,7 +1,15 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useData } from '../../../contexts/DataContext';
-import { WidgetContainer } from './WidgetContainer';
-import { Clock, Play, Pause, RotateCcw, ChevronDown, ChevronUp, Sparkles, AlertCircle } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
+import { 
+  ClockIcon, 
+  PlayIcon, 
+  PauseIcon, 
+  RotateCcwIcon, 
+  ChevronDownIcon, 
+  ChevronUpIcon, 
+  SparklesIcon 
+} from '../../../components/icons';
 
 export const FocusTimer: React.FC = () => {
   const { tasks } = useData();
@@ -79,8 +87,8 @@ export const FocusTimer: React.FC = () => {
   };
 
   return (
-    <WidgetContainer
-      className="bg-[#16161a] border border-white/10 text-white p-4 relative overflow-hidden min-h-[160px] flex flex-col justify-between dark:border-[var(--border-neon)] dark:shadow-[0_0_20px_rgba(var(--color-primary-rgb),0.15)] mt-auto"
+    <div 
+      className="bg-[#16161a] border border-white/10 text-white rounded-[var(--radius-lg)] p-4 relative overflow-hidden min-h-[160px] flex flex-col justify-between dark:border-[var(--border-neon)] dark:shadow-[0_0_20px_rgb(var(--color-primary-rgb)/0.15)] mt-auto"
       id="focus-timer-widget"
     >
       {/* Abstract background halo */}
@@ -92,14 +100,14 @@ export const FocusTimer: React.FC = () => {
       {/* Top Row: Title & Enter Zen Mode */}
       <div className="flex items-center justify-between z-10 shrink-0">
         <div className="flex items-center gap-1.5 text-white/50 text-[11px] font-bold">
-          <Clock className="w-3.5 h-3.5 text-primary" />
+          <ClockIcon className="w-3.5 h-3.5 text-primary" />
           <span className="tracking-wider text-[11px] font-black text-white">
             {isBreak ? 'استراحت کوتاه' : 'تمرکز عمیق'}
           </span>
         </div>
         <button
           onClick={() => setIsZenMode(true)}
-          className="bg-primary text-black hover:bg-primary/90 text-[11px] font-extrabold px-3 py-1 rounded-full active:scale-95 transition-transform"
+          className="bg-lime text-black hover:bg-[var(--color-primary-hover)] text-[11px] font-extrabold px-3 py-1 rounded-full active:scale-95 transition-transform"
         >
           ورود
         </button>
@@ -112,7 +120,7 @@ export const FocusTimer: React.FC = () => {
         </span>
 
         <div className="flex items-center gap-2">
-          {/* Reset / Settings icon wrapper */}
+          {/* Reset Button */}
           <button
             onClick={() => {
               setIsRunning(false);
@@ -121,18 +129,18 @@ export const FocusTimer: React.FC = () => {
             className="w-8 h-8 rounded-full bg-white/5 border border-white/10 hover:bg-white/10 text-white/70 flex items-center justify-center transition active:scale-95"
             title="ریست تایمر"
           >
-            <RotateCcw className="w-4 h-4" />
+            <RotateCcwIcon className="w-4 h-4" />
           </button>
           
           {/* Play/Pause Button */}
           <button
             onClick={() => setIsRunning(!isRunning)}
-            className="w-8 h-8 rounded-full bg-primary text-black flex items-center justify-center transition hover:scale-105 active:scale-95 shadow-[0_0_15px_rgba(var(--color-primary-rgb),0.3)]"
+            className="w-8 h-8 rounded-full bg-lime text-black flex items-center justify-center transition hover:scale-105 active:scale-95 shadow-[0_0_15px_rgb(var(--color-primary-rgb)/0.3)]"
           >
             {isRunning ? (
-              <Pause className="w-3.5 h-3.5 fill-current text-black" />
+              <PauseIcon className="w-3.5 h-3.5 fill-current text-black" />
             ) : (
-              <Play className="w-3.5 h-3.5 fill-current text-black ml-0.5" />
+              <PlayIcon className="w-3.5 h-3.5 fill-current text-black ml-0.5" />
             )}
           </button>
         </div>
@@ -146,9 +154,9 @@ export const FocusTimer: React.FC = () => {
         >
           <span className="truncate max-w-[90%]">{selectedTask || 'انتخاب تسک'}</span>
           {isDropdownOpen ? (
-            <ChevronUp className="w-3.5 h-3.5 text-white/50" />
+            <ChevronUpIcon className="w-3.5 h-3.5 text-white/50" />
           ) : (
-            <ChevronDown className="w-3.5 h-3.5 text-white/50" />
+            <ChevronDownIcon className="w-3.5 h-3.5 text-white/50" />
           )}
         </button>
 
@@ -194,93 +202,100 @@ export const FocusTimer: React.FC = () => {
       </div>
 
       {/* Immersive Zen Mode Overlay */}
-      {isZenMode && (
-        <div className="fixed inset-0 z-50 bg-black/95 backdrop-blur-2xl flex flex-col items-center justify-between p-8 text-white select-none animate-fade-in">
-          {/* Top Bar */}
-          <div className="w-full max-w-md flex items-center justify-between mt-4">
-            <div className="flex items-center gap-2 text-white/60">
-              <Sparkles className="w-5 h-5 text-primary animate-pulse" />
-              <span className="font-bold tracking-wide text-sm">
-                {isBreak ? 'حالت استراحت کوتاه' : 'حالت تمرکز عمیق'}
-              </span>
-            </div>
-            <button
-              onClick={() => setIsZenMode(false)}
-              className="px-4 py-1.5 rounded-full bg-white/10 hover:bg-white/25 border border-white/10 text-xs font-bold transition active:scale-95"
-            >
-              خروج از تمرکز
-            </button>
-          </div>
-
-          {/* Center Content: Breathing Indicator & Giant Timer */}
-          <div className="flex flex-col items-center justify-center gap-8 my-auto">
-            <div className="relative w-64 h-64 flex items-center justify-center">
-              {/* Outer pulsing glow */}
-              <div
-                className={`absolute inset-0 rounded-full bg-primary/10 blur-xl transition-all duration-[4000ms] ease-in-out ${
-                  isRunning ? 'scale-125 opacity-100' : 'scale-100 opacity-50'
-                }`}
-              ></div>
-
-              {/* Central core circle */}
-              <div
-                className={`w-56 h-56 rounded-full border border-primary/30 flex flex-col items-center justify-center bg-white/40 dark:bg-black/40 backdrop-blur-md transition-transform duration-[4000ms] ease-in-out ${
-                  isRunning ? 'scale-110' : 'scale-95'
-                }`}
-              >
-                <span className="text-white text-5xl font-black font-mono tracking-widest tabular-nums leading-none">
-                  {formatTime(timeLeft)}
+      <AnimatePresence>
+        {isZenMode && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.3 }}
+            className="fixed inset-0 z-50 bg-black/95 backdrop-blur-2xl flex flex-col items-center justify-between p-8 text-white select-none"
+          >
+            {/* Top Bar */}
+            <div className="w-full max-w-md flex items-center justify-between mt-4">
+              <div className="flex items-center gap-2 text-white/60">
+                <SparklesIcon className="w-5 h-5 text-primary animate-pulse" />
+                <span className="font-bold tracking-wide text-sm">
+                  {isBreak ? 'حالت استراحت کوتاه' : 'حالت تمرکز عمیق'}
                 </span>
-                {selectedTask && (
-                  <span className="text-xs text-white/60 font-bold mt-4 px-4 text-center truncate max-w-[200px]">
-                    {selectedTask}
-                  </span>
-                )}
               </div>
+              <button
+                onClick={() => setIsZenMode(false)}
+                className="px-4 py-1.5 rounded-full bg-white/10 hover:bg-white/25 border border-white/10 text-xs font-bold transition active:scale-95"
+              >
+                خروج از تمرکز
+              </button>
             </div>
 
-            {/* Breathing cycle text */}
-            {isRunning && (
-              <span className="text-primary/80 text-xs font-medium tracking-wide animate-pulse">
-                {isBreak ? 'دم و بازدم آرام...' : 'به درون خود نگاه کن و متمرکز بمان...'}
-              </span>
-            )}
-          </div>
+            {/* Center Content: Breathing Indicator & Giant Timer */}
+            <div className="flex flex-col items-center justify-center gap-8 my-auto">
+              <div className="relative w-64 h-64 flex items-center justify-center">
+                {/* Outer pulsing glow */}
+                <div
+                  className={`absolute inset-0 rounded-full bg-primary/10 blur-xl transition-all duration-[4000ms] ease-in-out ${
+                    isRunning ? 'scale-125 opacity-100' : 'scale-100 opacity-50'
+                  }`}
+                ></div>
 
-          {/* Bottom Controls */}
-          <div className="w-full max-w-sm flex items-center justify-center gap-6 pb-12">
-            <button
-              onClick={() => {
-                setIsRunning(false);
-                setTimeLeft(isBreak ? BREAK_SECONDS : FOCUS_SECONDS);
-              }}
-              className="w-12 h-12 rounded-full bg-white/10 border border-white/20 hover:bg-white/20 flex items-center justify-center transition active:scale-95"
-              title="ریست تایمر"
-            >
-              <RotateCcw className="w-5 h-5 text-white/80" />
-            </button>
+                {/* Central core circle */}
+                <div
+                  className={`w-56 h-56 rounded-full border border-primary/30 flex flex-col items-center justify-center bg-white/40 dark:bg-black/40 backdrop-blur-md transition-transform duration-[4000ms] ease-in-out ${
+                    isRunning ? 'scale-110' : 'scale-95'
+                  }`}
+                >
+                  <span className="text-white text-5xl font-black font-mono tracking-widest tabular-nums leading-none">
+                    {formatTime(timeLeft)}
+                  </span>
+                  {selectedTask && (
+                    <span className="text-xs text-white/60 font-bold mt-4 px-4 text-center truncate max-w-[200px]">
+                      {selectedTask}
+                    </span>
+                  )}
+                </div>
+              </div>
 
-            <button
-              onClick={() => setIsRunning(!isRunning)}
-              className="w-16 h-16 rounded-full bg-primary text-black flex items-center justify-center transition hover:scale-105 active:scale-95 shadow-[0_0_25px_rgba(var(--color-primary-rgb),0.4)]"
-            >
-              {isRunning ? (
-                <Pause className="w-7 h-7 fill-current text-black" />
-              ) : (
-                <Play className="w-7 h-7 fill-current text-black ml-1" />
+              {/* Breathing cycle text */}
+              {isRunning && (
+                <span className="text-primary/80 text-xs font-medium tracking-wide animate-pulse">
+                  {isBreak ? 'دم و بازدم آرام...' : 'به درون خود نگاه کن و متمرکز بمان...'}
+                </span>
               )}
-            </button>
+            </div>
 
-            <button
-              onClick={handleToggleMode}
-              className="px-5 h-12 rounded-full bg-white/10 border border-white/20 hover:bg-white/20 flex items-center justify-center text-xs font-bold transition active:scale-95"
-            >
-              {isBreak ? 'حالت تمرکز' : 'حالت استراحت'}
-            </button>
-          </div>
-        </div>
-      )}
-    </WidgetContainer>
+            {/* Bottom Controls */}
+            <div className="w-full max-w-sm flex items-center justify-center gap-6 pb-12">
+              <button
+                onClick={() => {
+                  setIsRunning(false);
+                  setTimeLeft(isBreak ? BREAK_SECONDS : FOCUS_SECONDS);
+                }}
+                className="w-12 h-12 rounded-full bg-white/10 border border-white/20 hover:bg-white/20 flex items-center justify-center transition active:scale-95"
+                title="ریست تایمر"
+              >
+                <RotateCcwIcon className="w-5 h-5 text-white/80" />
+              </button>
+
+              <button
+                onClick={() => setIsRunning(!isRunning)}
+                className="w-16 h-16 rounded-full bg-lime text-black flex items-center justify-center transition hover:scale-105 active:scale-95 shadow-[0_0_25px_rgb(var(--color-primary-rgb)/0.4)]"
+              >
+                {isRunning ? (
+                  <PauseIcon className="w-7 h-7 fill-current text-black" />
+                ) : (
+                  <PlayIcon className="w-7 h-7 fill-current text-black ml-1" />
+                )}
+              </button>
+
+              <button
+                onClick={handleToggleMode}
+                className="px-5 h-12 rounded-full bg-white/10 border border-white/20 hover:bg-white/20 flex items-center justify-center text-xs font-bold transition active:scale-95"
+              >
+                {isBreak ? 'حالت تمرکز' : 'حالت استراحت'}
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
   );
 };
-

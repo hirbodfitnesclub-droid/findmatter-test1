@@ -2,11 +2,12 @@ import React, { useMemo } from 'react';
 import { useData } from '../../../contexts/DataContext';
 import { getTehranDateString, compareTehranDates, isSameTehranDay } from '../../../utils/dateUtils';
 import { Priority } from '../../../types';
-import { WidgetContainer } from './WidgetContainer';
 
 interface StatsOverviewProps {
   onOpenWeeklyReport: () => void;
 }
+
+const dashW = (p: number) => Math.min(50, Math.max(30, Math.round(p)));
 
 export const StatsOverview: React.FC<StatsOverviewProps> = ({ onOpenWeeklyReport }) => {
   const { tasks, projects, selectedDate } = useData();
@@ -66,10 +67,10 @@ export const StatsOverview: React.FC<StatsOverviewProps> = ({ onOpenWeeklyReport
   }, [projects.length, stats.highPriorityProjects]);
 
   return (
-    <WidgetContainer className="flex gap-3 h-[145px] !p-0 !bg-transparent !border-none !backdrop-blur-none !shadow-none">
+    <div className="flex gap-3 shrink-0 min-h-[145px]" id="stats-overview-container">
       {/* Box 1: Weekly Status */}
-      <div className="w-[110px] shrink-0 rounded-[var(--radius-lg)] p-3 flex flex-col items-center justify-between relative hover:-translate-y-[2px] transition-all duration-200 bg-[var(--ink-bg)] border border-[var(--border-neon)] shadow-sm">
-        <h4 className="text-[11px] font-bold text-center">وضعیت هفته</h4>
+      <div className="w-[110px] shrink-0 min-h-[115px] rounded-[var(--radius-lg)] p-3 flex flex-col items-center justify-between relative transition-all bg-[#111113]/85 backdrop-blur-xl border border-white/10 shadow-[0_15px_35px_rgba(0,0,0,0.25)] dark:bg-[var(--bg-card)] dark:border-subtle dark:shadow-none">
+        <h4 className="text-[11px] font-bold text-center text-white/70 dark:text-[var(--text-muted)]">وضعیت هفته</h4>
         
         <div className="relative w-[68px] h-[68px] shrink-0 my-1">
           <svg className="w-full h-full -rotate-90" viewBox="0 0 100 100">
@@ -87,45 +88,45 @@ export const StatsOverview: React.FC<StatsOverviewProps> = ({ onOpenWeeklyReport
               strokeDashoffset={strokeDashoffset}
             />
           </svg>
-          <div className="absolute inset-0 flex items-center justify-center text-[13px] font-black mt-0.5">
+          <div className="absolute inset-0 flex items-center justify-center text-[13px] font-black mt-0.5 text-white dark:text-[var(--text-main)]">
             {progress}%
           </div>
         </div>
 
         <button 
           onClick={onOpenWeeklyReport} 
-          className="w-full max-w-[80px] bg-primary text-[var(--text-on-primary)] text-[10px] font-bold py-1.5 rounded-full hover:scale-105 active:scale-95 transition shadow-sm"
+          className="w-full max-w-[80px] bg-[var(--color-primary)] text-black dark:bg-[var(--ink-bg)] dark:text-[var(--ink-text)] dark:border dark:border-[var(--border-neon)] text-[10px] font-bold py-1.5 rounded-full hover:scale-105 active:scale-95 transition shadow-sm"
         >
           مشاهده
         </button>
       </div>
 
       {/* Box 2: Today at a Glance */}
-      <div className="tile-lime flex-1 rounded-[var(--radius-lg)] p-3 relative flex flex-col justify-between hover:-translate-y-[2px] transition-all duration-200 shadow-sm text-[var(--text-on-primary)]">
+      <div className="tile-lime flex-1 min-h-[115px] rounded-[var(--radius-lg)] p-3 relative flex flex-col justify-between hover:-translate-y-[2px] transition-all duration-200 shadow-sm text-black">
         <div className="text-right pr-1">
-          <h3 className="font-black text-[13px]">کارهای امروز در یک نگاه</h3>
+          <h3 className="font-black text-[13px] text-black">کارهای امروز در یک نگاه</h3>
         </div>
         
         <div className="flex flex-col gap-1.5 mt-1">
           {/* Row 1 */}
           <div className="flex items-center gap-1.5 w-full">
-            <div className="bg-[#16161A] text-white rounded-full h-[24px] flex-1 flex items-center px-3 justify-start text-[11px] font-bold">
+            <div className="bg-[#16161A] text-white rounded-full h-[24px] flex-1 flex items-center px-3 justify-start text-[11px] font-bold whitespace-nowrap min-w-0 overflow-hidden">
               تعداد: {stats.completedToday}/{totalTodayTasks}
             </div>
             <div 
               className="border-[1.5px] border-dashed border-black/40 rounded-full h-[24px] shrink-0" 
-              style={{ width: `${inProgressPercent}%` }}
+              style={{ width: `${dashW(inProgressPercent)}%` }}
             ></div>
           </div>
           
           {/* Row 2 */}
           <div className="flex items-center gap-1.5 w-full">
-            <div className="bg-[#16161A] text-white rounded-full h-[24px] flex-1 flex items-center px-3 justify-start text-[11px] font-bold">
+            <div className="bg-[#16161A] text-white rounded-full h-[24px] flex-1 flex items-center px-3 justify-start text-[11px] font-bold whitespace-nowrap min-w-0 overflow-hidden">
               مهم: {stats.highPriorityProjects}/{projects.length}
             </div>
             <div 
               className="border-[1.5px] border-dashed border-black/40 rounded-full h-[24px] shrink-0" 
-              style={{ width: `${nonHighPriorityProjectsPercent}%` }}
+              style={{ width: `${dashW(nonHighPriorityProjectsPercent)}%` }}
             ></div>
           </div>
           
@@ -135,7 +136,7 @@ export const StatsOverview: React.FC<StatsOverviewProps> = ({ onOpenWeeklyReport
               عقب افتاده: {stats.overdue}
             </div>
             <button className="text-white/80 hover:text-white hover:scale-110 active:scale-95 transition p-1 ml-1" title="مشاهده">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" />
                 <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
               </svg>
@@ -146,8 +147,8 @@ export const StatsOverview: React.FC<StatsOverviewProps> = ({ onOpenWeeklyReport
         {/* Legend */}
         <div className="flex items-center justify-start gap-3 pt-1">
           <div className="flex items-center gap-1">
-            <div className="w-2.5 h-2.5 rounded-full border-[1.5px] border-dashed border-black shrink-0"></div>
-            <span className="text-[9px] font-bold text-black/80">در حال انجام</span>
+            <div className="w-2.5 h-2.5 rounded-full border-[1.5px] border-dashed border-black/40 shrink-0"></div>
+            <span className="text-[9px] font-bold text-black">در حال انجام</span>
           </div>
           <div className="flex items-center gap-1">
             <div className="w-2.5 h-2.5 rounded-full bg-black shrink-0"></div>
@@ -155,6 +156,6 @@ export const StatsOverview: React.FC<StatsOverviewProps> = ({ onOpenWeeklyReport
           </div>
         </div>
       </div>
-    </WidgetContainer>
+    </div>
   );
 };

@@ -2,7 +2,7 @@ import React from 'react';
 import { Page } from '../types';
 import { useAuth } from '../contexts/AuthContext';
 import { useData } from '../contexts/DataContext';
-import { HomeIcon, ListChecksIcon, NotebookIcon, BriefcaseIcon } from './icons';
+import { HomeIcon, ListChecksIcon, NotebookIcon, BriefcaseIcon, SparklesIcon } from './icons';
 
 interface SidebarProps {
   currentPage: Page;
@@ -14,6 +14,7 @@ interface SidebarProps {
 const toggleTheme = () => {
   const isDark = document.documentElement.classList.toggle('dark');
   localStorage.setItem('hexer-theme', isDark ? 'dark' : 'light');
+  document.querySelector('meta[name="theme-color"]')?.setAttribute('content', isDark ? '#121212' : '#F4F5F7');
 };
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -91,6 +92,19 @@ export const Sidebar: React.FC<SidebarProps> = ({
         >
           <BriefcaseIcon className="w-5 h-5" />
           <span>پروژه‌ها</span>
+        </button>
+
+        <button
+          onClick={() => setPage(Page.Chat)}
+          className={
+            currentPage === Page.Chat
+              ? "nav-active flex items-center gap-3 px-4 py-3 rounded-[var(--radius-md)] w-full text-right cursor-pointer"
+              : "flex items-center gap-3 px-4 py-3 text-[var(--text-muted)] hover:bg-[var(--nav-hover-bg)] hover:text-[var(--text-main)] rounded-[var(--radius-md)] font-medium transition w-full text-right cursor-pointer"
+          }
+          id="nav-btn-chat"
+        >
+          <SparklesIcon className="w-5 h-5" />
+          <span>چت</span>
         </button>
       </nav>
 

@@ -1,31 +1,28 @@
 import React, { useMemo, useState } from 'react';
-import { useAuth } from '../../contexts/AuthContext';
 import { useData } from '../../contexts/DataContext';
 import { isSameTehranDay } from '../../utils/dateUtils';
+import { useMediaQuery } from '../../hooks/useMediaQuery';
 import { WeeklyReportModal } from './components/WeeklyReportModal';
 
 // Feature subcomponents
 import { DashboardHeader } from './components/DashboardHeader';
 import { WeekCalendar } from './components/WeekCalendar';
 import { TodaysPlan } from './components/TodaysPlan';
-import { QuickCapture } from './components/QuickCapture';
 import { StatsOverview } from './components/StatsOverview';
 import { KeyProjects } from './components/KeyProjects';
 import { ProductivityChart } from './components/ProductivityChart';
 import { FocusTimer } from './components/FocusTimer';
+import { AiComposerPanel } from './components/AiComposerPanel';
 
 const Dashboard: React.FC = () => {
-  const { user, signOut } = useAuth();
   const {
     tasks,
     selectedDate,
     setSelectedDate,
-    subscription,
-    profile,
-    onTriggerUpgrade,
   } = useData();
 
   const [isReportOpen, setIsReportOpen] = useState(false);
+  const isDesktop = useMediaQuery('(min-width: 1024px)');
 
   // Calculate selected day's progress for the Header Ring
   const selectedDayProgressStats = useMemo(() => {
@@ -40,36 +37,42 @@ const Dashboard: React.FC = () => {
   }, [tasks, selectedDate]);
 
   return (
-    <div className="pb-2">
-      {/* هدر موبایل — فقط موبایل. پروفایل از طریق CustomEvent باز می‌شود (ProfileModal گلوبال در App است) */}
-      <div className="lg:hidden">
-        <DashboardHeader 
-          onOpenProfile={() => window.dispatchEvent(new CustomEvent('hexer:open-profile'))} 
-          todayProgress={selectedDayProgressStats.progress}
-          hasTasksToday={selectedDayProgressStats.hasTasks}
-        />
-      </div>
-      
-      <div className="px-4 sm:px-6 max-w-[1280px] mx-auto pt-5 space-y-6">
-        {/* گریدِ داشبورد: موبایل ۱ ستون، دسکتاپ ۲ ستون (سایدبار از App می‌آید، نه اینجا) */}
-        <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-4 lg:gap-6">
-          
-          {/* ستون مرکز فرمان */}
-          <div className="space-y-6 min-w-0">
-            <QuickCapture />
+    <div className="h-full pb-2">
+      {isDesktop ? (
+        <div className="flex gap-4 h-full" id="desktop-dashboard">
+          {/* ستون ۲: مرکز فرمان (انعطاف‌پذیر، دارای اسکرول داخلی) */}
+          <section className="flex-1 flex flex-col gap-4 min-w-0 h-full">
+            <AiComposerPanel />
             <ProductivityChart />
-            <TodaysPlan />
-          </div>
-
-          {/* ستون بافتار داده */}
-          <div className="space-y-6 min-w-0">
+            {/* TodaysPlan تنها کامپوننتی است که کشسان و دارای اسکرول داخلی است */}
+            <div className="flex-1 min-h-0">
+              <TodaysPlan />
+            </div>
+          </section>
+          {/* ستون ۳: بافتار داده (اسکرول داخلی کل ستون برای ایمنیِ زوم) */}
+          <aside className="w-[320px] shrink-0 flex flex-col gap-4 h-full overflow-y-auto soft-scroll pb-2 pr-1">
             <StatsOverview onOpenWeeklyReport={() => setIsReportOpen(true)} />
             <WeekCalendar selectedDate={selectedDate} onDateChange={setSelectedDate} />
             <KeyProjects />
             <FocusTimer />
-          </div>
+          </aside>
         </div>
-      </div>
+      ) : (
+        <div className="flex flex-col gap-6 px-5 pt-5" id="mobile-dashboard">
+          <DashboardHeader 
+            onOpenProfile={() => window.dispatchEvent(new CustomEvent('hexer:open-profile'))} 
+            todayProgress={selectedDayProgressStats.progress}
+            hasTasksToday={selectedDayProgressStats.hasTasks}
+          />
+          <WeekCalendar selectedDate={selectedDate} onDateChange={setSelectedDate} />
+          <AiComposerPanel />
+          <StatsOverview onOpenWeeklyReport={() => setIsReportOpen(true)} />
+          <TodaysPlan />
+          <ProductivityChart />
+          <KeyProjects />
+          <FocusTimer />
+        </div>
+      )}
 
       <WeeklyReportModal 
         isOpen={isReportOpen} 

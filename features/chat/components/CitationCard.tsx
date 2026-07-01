@@ -31,7 +31,7 @@ export const CitationCard: React.FC<CitationCardProps> = ({ citation, onClick })
   return (
     <button 
       onClick={() => onClick(citation)}
-      className="flex items-center gap-2 bg-[var(--bg-card)] backdrop-blur-xl border border-[var(--border-subtle)] hover:bg-[var(--nav-hover-bg)] hover:border-primary/30 rounded-lg p-2 transition-all group text-right w-full sm:w-auto"
+      className="flex items-center gap-2 glass-card border-subtle hover:bg-[var(--nav-hover-bg)] hover:border-primary/30 rounded-lg p-2 transition-all group text-right w-full sm:w-auto"
     >
       <div className={`p-1.5 rounded-md ${iconBgColor}`}>
         {iconComponent}

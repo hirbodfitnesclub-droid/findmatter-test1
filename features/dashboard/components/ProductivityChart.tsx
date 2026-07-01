@@ -1,8 +1,7 @@
 import React, { useMemo } from 'react';
 import { useData } from '../../../contexts/DataContext';
 import { toJalaali, isSameTehranDay } from '../../../utils/dateUtils';
-import { WidgetContainer } from './WidgetContainer';
-import { TrendingDown, TrendingUp } from 'lucide-react';
+import { TrendingUpIcon, TrendingDownIcon } from '../../../components/icons';
 
 export const ProductivityChart: React.FC = () => {
   const { tasks } = useData();
@@ -22,17 +21,15 @@ export const ProductivityChart: React.FC = () => {
       d.setDate(saturday.getDate() + i);
       days.push(d);
     }
-    return days;
+    return days.reverse();
   }, []);
 
-  // 2. Compute progress percentage for each day of the current week
+  // 2. Compute progress percentage for each day of the current week (completed / total due)
   const weekData = useMemo(() => {
     return weekDays.map((day) => {
-      // Find tasks due or completed on this day
+      // Find tasks due on this day
       const dayTasks = tasks.filter((t) => {
-        const isDue = t.due_date && isSameTehranDay(t.due_date, day);
-        const isCompleted = t.completed_at && isSameTehranDay(t.completed_at, day);
-        return isDue || isCompleted;
+        return t.due_date && isSameTehranDay(t.due_date, day);
       });
 
       const completedCount = dayTasks.filter((t) => t.status === 'done').length;
@@ -75,7 +72,6 @@ export const ProductivityChart: React.FC = () => {
   const toPersianNum = (num: number) => num.toLocaleString('fa-IR');
 
   // Chart configuration & coordinates
-  const chartHeight = 120;
   const colWidth = 22;
   const colGap = 20; // gap between columns
   const colXStart = 1;
@@ -86,71 +82,88 @@ export const ProductivityChart: React.FC = () => {
     return weekData.map((d, index) => {
       const x = colXStart + index * (colWidth + colGap) + colWidth / 2;
       const barHeight = (d.progress / 100) * maxBarHeight;
-      const y = baselineY - Math.max(10, barHeight); // minimum height of 10 for curve visibility
+      const y = baselineY - Math.max(8, barHeight); // minimum height of 8 for curve visibility
       return { x, y };
     });
   }, [weekData]);
 
-  // Generate path string for the line chart
+  // Generate path string for the line chart using Catmull-Rom to Cubic Bézier spline
   const pathD = useMemo(() => {
-    if (points.length === 0) return '';
-    return points.reduce((acc, p, index) => {
-      if (index === 0) return `M ${p.x} ${p.y}`;
-      // Draw smooth line using simple quadratic approximation or direct lines
-      return `${acc} L ${p.x} ${p.y}`;
-    }, '');
+    const N = points.length;
+    if (N === 0) return '';
+    let d = `M ${points[0].x} ${points[0].y}`;
+    for (let i = 0; i < N - 1; i++) {
+      const p_im1 = i - 1 >= 0 ? points[i - 1] : points[i];
+      const p_i = points[i];
+      const p_ip1 = points[i + 1];
+      const p_ip2 = i + 2 < N ? points[i + 2] : points[i + 1];
+
+      const cp1 = {
+        x: p_i.x + (p_ip1.x - p_im1.x) / 6,
+        y: p_i.y + (p_ip1.y - p_im1.y) / 6,
+      };
+
+      const cp2 = {
+        x: p_ip1.x - (p_ip2.x - p_i.x) / 6,
+        y: p_ip1.y - (p_ip2.y - p_i.y) / 6,
+      };
+
+      d += ` C ${cp1.x.toFixed(2)} ${cp1.y.toFixed(2)}, ${cp2.x.toFixed(2)} ${cp2.y.toFixed(2)}, ${p_ip1.x.toFixed(2)} ${p_ip1.y.toFixed(2)}`;
+    }
+    return d;
   }, [points]);
 
   return (
-    <WidgetContainer
-      className="p-5 relative overflow-hidden flex gap-4 min-h-[200px]"
+    <div
+      className="tile-ink rounded-[var(--radius-lg)] p-5 relative overflow-hidden flex flex-col lg:flex-row gap-3 lg:gap-4 min-h-[200px] shrink-0"
+      dir="rtl"
       id="productivity-chart-widget"
     >
       {/* Left Column: Integrated Week & Month Info */}
-      <div className="w-[38%] bg-white/[0.05] dark:bg-white/[0.04] border border-white/10 rounded-[20px] p-3 flex flex-col justify-center gap-3.5 shrink-0 z-10">
+      <div className="w-full lg:w-[38%] bg-white/5 dark:bg-white/[0.04] border border-white/10 rounded-[20px] p-3 flex flex-row lg:flex-col justify-between lg:justify-center items-center lg:items-stretch gap-3.5 lg:shrink-0 z-10">
         {/* Week Row */}
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between flex-1 lg:flex-none w-full">
           <div className="flex items-center gap-2">
             <div className="w-7 h-7 rounded-full bg-white/10 flex items-center justify-center text-white shrink-0">
-              <TrendingDown className="w-4 h-4 text-white" />
+              <TrendingDownIcon className="w-4 h-4 text-white" />
             </div>
             <div className="flex flex-col text-right leading-tight">
               <span className="text-[11px] text-white/90 font-black">بهره‌وری</span>
               <span className="text-[9px] text-white/50 font-bold mt-0.5">هفته جاری</span>
             </div>
           </div>
-          <span className="text-[10px] font-black bg-[var(--color-primary)] text-black px-2.5 py-0.5 rounded-full">
+          <span className="text-[10px] font-black bg-lime px-2.5 py-0.5 rounded-full text-black">
             {toPersianNum(weeklyRate)}٪
           </span>
         </div>
 
         {/* Separator */}
-        <div className="border-t border-white/[0.08]"></div>
+        <div className="border-r lg:border-t h-8 lg:h-0 border-white/[0.08]"></div>
 
         {/* Month Row */}
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between flex-1 lg:flex-none w-full">
           <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center text-primary shrink-0">
-              <TrendingUp className="w-4 h-4 text-primary" />
+            <div className="w-7 h-7 rounded-full bg-primary/15 flex items-center justify-center text-primary shrink-0">
+              <TrendingUpIcon className="w-4 h-4 text-primary" />
             </div>
             <div className="flex flex-col text-right leading-tight">
               <span className="text-[11px] text-white/90 font-black">بهره‌وری</span>
               <span className="text-[9px] text-white/50 font-bold mt-0.5">ماه جاری</span>
             </div>
           </div>
-          <span className="text-[10px] font-black bg-[var(--color-primary)] text-black px-2.5 py-0.5 rounded-full shadow-[0_2px_8px_rgba(var(--color-primary-rgb),0.3)]">
+          <span className="text-[10px] font-black bg-lime px-2.5 py-0.5 rounded-full text-black shadow-[0_2px_8px_rgb(var(--color-primary-rgb)/0.3)]">
             {toPersianNum(monthlyRate)}٪
           </span>
         </div>
       </div>
 
       {/* Right Column: Interactive SVG Chart */}
-      <div className="flex-1 relative z-10 select-none h-full flex items-center justify-center">
+      <div className="flex-1 w-full relative z-10 select-none h-full flex items-center justify-center">
         <svg viewBox="0 0 280 120" preserveAspectRatio="none" className="w-full h-full overflow-visible">
           <defs>
             <linearGradient id="waveGrad" x1="0%" y1="0%" x2="100%" y2="0%">
-              <stop offset="0%" stopColor="var(--border-subtle)" />
-              <stop offset="100%" stopColor="var(--color-primary)" />
+              <stop offset="0%" stopColor="#38bdf8" />
+              <stop offset="100%" stopColor="#D8F066" />
             </linearGradient>
           </defs>
 
@@ -191,15 +204,19 @@ export const ProductivityChart: React.FC = () => {
             }
 
             return (
-              <rect
-                key={index}
-                x={x}
-                y={y}
-                width={colWidth}
-                height={Math.max(4, barHeight)} // draw small hint if progress is tiny
-                rx={8}
-                fill="rgba(255,255,255,0.9)"
-              />
+              <g key={index}>
+                {/* Progress bar */}
+                {barHeight > 0 && (
+                  <rect
+                    x={x}
+                    y={y}
+                    width={colWidth}
+                    height={barHeight}
+                    rx={8}
+                    fill="rgba(255,255,255,0.9)"
+                  />
+                )}
+              </g>
             );
           })}
 
@@ -215,19 +232,23 @@ export const ProductivityChart: React.FC = () => {
             />
           )}
 
-          {/* Day Labels */}
-          <g fill="rgba(255,255,255,0.4)" fontSize="10" fontWeight="bold" textAnchor="middle">
-            <text x="12" y="115">شنبه</text>
-            <text x="54" y="115">یکشنبه</text>
-            <text x="96" y="115">دوشنبه</text>
-            <text x="138" y="115">سه‌شنبه</text>
-            <text x="180" y="115">چهارشنبه</text>
-            <text x="222" y="115">پنج‌شنبه</text>
-            <text x="264" y="115">جمعه</text>
+          {/* Day Labels - Dynamically mapped from weekData to preserve order */}
+          <g fill="rgba(255,255,255,0.4)" fontSize="7" fontWeight="bold" textAnchor="middle">
+            {weekData.map((d, index) => {
+              const x = colXStart + index * (colWidth + colGap) + colWidth / 2;
+              const daysOfWeek = ['یکشنبه', 'دوشنبه', 'سهشنبه', 'چهارشنبه', 'پنجشنبه', 'جمعه', 'شنبه'];
+              const dayName = daysOfWeek[d.day.getDay()];
+              return (
+                <text key={index} x={x} y="115">
+                  {dayName}
+                </text>
+              );
+            })}
           </g>
         </svg>
       </div>
-    </WidgetContainer>
+    </div>
   );
 };
 
+export default ProductivityChart;

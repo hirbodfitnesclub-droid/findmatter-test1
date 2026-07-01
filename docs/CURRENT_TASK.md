@@ -1,162 +1,212 @@
 
+# فاز L3 — نقشهٔ راهِ پرداختِ بصری و ریسپانسیو (Visual & Responsive Polish)
+
+> **مرجع کامل:** `docs/PROJECT.md` فاز L3 و `docs/ARCHITECTURE.md` §L3.
+> **دامنه:** فقط لایهٔ view. هیچ سرویس/هوک/RPC/دیتابیس تغییر نمی‌کند. هیچ فایلی ساخته یا Delete نمی‌شود.
+> **مدلِ کدنویس:** مهارتِ بالا، درکِ کودکانه؛ پس هر تسک با کلاس‌های دقیقِ Tailmind، قدم‌به‌قدم و با معیارِ پذیرشِ میکرو تعریف شده تا توهم/بداجرا رخ ندهد.
+> **قانونِ ممنوعیتِ کپی:** هیچ کدی از `dashboard_redisign/index.html` کپی نشود؛ فقط به‌عنوان مرجعِ بصری خوانده شود.
+
+> ### ⚠️ هشدارهای حیاتی (قبل از هر تسک بخوان)
+> ۱. **لایم فقط پس‌زمینه:** هرگز `--color-primary` را رنگِ متن روی سطحِ روشن نکن (§L3-1). ۲. **بدونِ `hidden` روی آیکن‌های تم** (نبایدِ L2-24). ۳. **بدونِ کتابخانهٔ جدید** (نه d3، نه framer اضافه). ۴. **`min-h` به‌جای ارتفاعِ ثابتِ قیچی‌کننده** در موبایل. ۵. اتریبیوت‌های SVG در JSX **camelCase**. ۶. به فایل‌های مرده (`TodaysNotes`,`HabitTracker`,`QuickCapture`) دست نزن.
+
 ---
 
-### تسک L2-24: ریدیزاین استایل مودال‌های سراسری
+### [X] تسک L3-1: رفعِ باکس «کارهای امروز در یک نگاه» (`StatsOverview.tsx` - تکمیل شد)
 
-**عنوان:** اعمال توکن‌های Cyber-Lime روی مودال‌های ویرایش تسک، یادداشت، عادت و ProfileModal و PaywallModal
+**عنوان:** مقیّدسازیِ کپسول‌های نقطه‌چین + متنِ تک‌خطی + رفعِ سرریز/فروپاشی.
 
 **راهنمای پیاده‌سازی فنی:**
-1. در `TaskEditorModal.tsx` (۲۸KB):
-   - backdrop: حذف `bg-black/75` → `bg-black/40 dark:bg-black/70`.
-   - بدنه: حذف `bg-slate-900 border-slate-700/80` → `bg-[var(--bg-card)] border-[var(--border-subtle)]`.
-   - input/textarea: حذف `bg-gray-900 border-white/10 text-white focus:border-sky-500` → `bg-[var(--bg-card)] border-[var(--border-subtle)] text-[var(--text-main)] focus:border-[var(--input-focus-ring)]`.
-   - دکمه primary: حذف `bg-sky-600 text-white` → `bg-lime text-[var(--text-on-primary)]`.
-   - دکمه secondary: حذف `bg-gray-700 text-gray-300` → `glass-card text-[var(--text-main)]`.
-   - دکمه destructive: حذف `bg-red-500/10 text-red-400` → `bg-[var(--semantic-error-soft)] text-[var(--semantic-error)]`.
-   - `priorityConfig`: همان جایگزینی‌های TaskCard.tsx (تسک L2-20).
-   - متن‌ها: `text-white` → `text-[var(--text-main)]`. `text-gray-400` → `text-[var(--text-muted)]`.
-
-2. در `NoteEditorModal.tsx`: همان الگو — backdrop, بدنه, input, دکمه‌ها.
-
-3. در `HabitManagerModal.tsx` و `HabitEditorModal.tsx` و `HabitForm.tsx`: همان الگو. `bg-zinc-950` → `bg-[var(--bg-card)]`. `text-orange-500` → `text-[var(--color-primary)]`. `focus:ring-orange-500` → `focus:ring-[var(--color-primary)]`.
-
-4. در `ProfileModal.tsx` (۲۰KB): همان الگو. `bg-gray-900 border-white/10` → `bg-[var(--bg-card)] border-[var(--border-subtle)]`.
-
-5. در `PaywallModal.tsx`: همان الگو. `bg-sky-600` → `bg-lime text-[var(--text-on-primary)]`.
+1. در `StatsOverview.tsx`، در ردیف ۱ و ۲ (باکسِ راستِ `tile-lime`)، کپسولِ متن (`bg-[#16161A] text-white ... flex-1`) کلاسِ `whitespace-nowrap min-w-0 overflow-hidden` بگیرد تا «تعداد: X/Y» و «مهم: X/Y» هرگز دوخطی نشوند.
+2. کپسولِ نقطه‌چینِ کناری را از عرضِ خام رها کن و با `clamp` مقیّد کن. یک هلپرِ خالص بساز، مثلاً `const dashW = (p:number) => Math.min(50, Math.max(30, Math.round(p)))` و در استایل: `style={{ width: `${dashW(inProgressPercent)}%` }}` و برای ردیف ۲ همان با `nonHighPriorityProjectsPercent`. (کف ۳۰٪، سقف ۵۰٪ → متن همیشه ≥۵۰٪.)
+3. بوردرِ نقطه‌چین را نرم کن: `border-[1.5px] border-dashed border-black/40` (به‌جای `border-black`). هر دو کپسولِ نقطه‌چین `shrink-0` و `h-[24px]` بمانند.
+4. **حالتِ پیش‌فرضِ بدونِ داده:** چون کف ۳۰٪ است، وقتی داده صفر است کپسول ۳۰٪ پر می‌ماند (خواستهٔ کاربر) و متن تک‌خطی می‌ماند.
+5. اتریبیوتِ SVGِ دکمهٔ «چشم» در ردیف ۳ را از `stroke-width="2.5"` به `strokeWidth="2.5"` اصلاح کن (رفعِ هشدارِ React — یافتهٔ L3-X1).
+6. **سمنتیک (یافتهٔ L3-X3):** اگر رینگِ باکسِ چپ بر `selectedDate` است اما شمارشِ ردیف‌ها بر `new Date()`، این تناقض را با تراز کردنِ شمارش‌ها بر `selectedDate` رفع کن (یا اگر عمدی است، کامنتِ توضیحی بگذار). پیش‌فرضِ معمار: تراز بر `selectedDate`.
 
 **محدودیت‌های اختصاصی تسک:**
-- **نباید:** هیچ prop، استیت یا handler را تغییر بدهی.
-- **نباید:** منطق checklist، date picker، time picker را دست بزنی.
-- **باید:** در موبایل، مودال به صورت bottom-sheet (`rounded-t-3xl h-[100dvh]`) باشد.
-- **باید:** `pb-safe` یا `pb-safe-content` در پایین مودال حفظ شود.
-- **باید:** انیمیشن `motion/react` (slide-up) حفظ شود.
+- **باید:** متنِ باکسِ لایم `text-black`/`text-white` بماند (نه `--text-main`؛ نبایدِ کنتراستِ L2-10). باکسِ چپ در لایت واقعاً تیره (`#111113`) بماند.
+- **نباید:** عرضِ درصدیِ نامقیّد؛ بوردرِ سختِ `border-black`؛ تغییرِ منطقِ `useMemo`های محاسباتی جز ترازِ تاریخِ بند ۶.
+
+**معیار پذیرش میکرو:**
+- در ۰، ۵۰، ۱۰۰ درصد و حالتِ بدونِ تسک، هیچ کپسولی سرریز/فروپاشی نمی‌کند و «تعداد/مهم» همیشه یک‌خطی است.
+- هیچ هشدارِ React دربارهٔ `stroke-width` در کنسول نیست.
+- در لایت و دارک، متنِ باکسِ لایم و باکسِ تیره خوانا است.
 
 **آرایه کانتکست ماشین‌خوان:**
 ```json
-CONTEXT_FILES: ["features/tasks/components/TaskEditorModal.tsx", "features/notes/components/NoteEditorModal.tsx", "features/habits/components/HabitManagerModal.tsx", "features/habits/components/HabitEditorModal.tsx", "features/habits/components/HabitForm.tsx", "components/ProfileModal.tsx", "components/PaywallModal.tsx", "components/Modal.tsx"]
+CONTEXT_FILES: ["features/dashboard/components/StatsOverview.tsx", "contexts/DataContext.tsx", "utils/dateUtils.ts", "dashboard_redisign/index.html"]
 ```
 
 ---
 
-### تسک L2-25: ریدیزاین استایل صفحات اشتراک، آنبوردینگ و Auth [انجام شد]
+### [X] تسک L3-2: رفعِ سرریزِ نامِ روزها در تقویم (`WeekCalendar.tsx` - تکمیل شد)
 
-**عنوان:** اعمال توکن‌های Cyber-Lime روی صفحات اشتراک، آنبوردینگ و Auth
+**عنوان:** نگاشتِ نامِ کوتاهِ روز + بزرگ‌ترکردنِ کپسول + کاهشِ گپ.
 
 **راهنمای پیاده‌سازی فنی:**
-1. در `SubscriptionPage.tsx` و `SubscriptionModal.tsx` و `UsageMeter.tsx`: همان الگوی جایگزینی رنگ. `bg-sky-600` → `bg-lime`. `text-sky-400` → `text-[var(--color-primary)]`. `bg-zinc-900` → `glass-card`.
-2. در `Onboarding.tsx` و `NameStep.tsx` و `SlideCard.tsx` و `SlideViewer.tsx`: `bg-gray-950` → `text-[var(--text-main)]`. `bg-sky-600` → `bg-lime`. `text-sky-400` → `text-[var(--color-primary)]`.
-3. در `Auth.tsx` (۲۲KB): `bg-gray-950` → `text-[var(--text-main)]`. `bg-sky-600` → `bg-lime text-[var(--text-on-primary)]`. `text-sky-400` → `text-[var(--color-primary)]`. `focus:ring-sky-500` → `focus:ring-[var(--color-primary)]`.
-4. در `NetworkBanner.tsx`: `bg-red-500/10 text-red-300 border-red-500/20` → `bg-[var(--semantic-error-soft)] text-[var(--semantic-error)] border-[var(--semantic-error)]/20`.
-5. در `ToastNotifications.tsx`: `bg-gray-800 border-white/10` → `glass-card border-[var(--border-subtle)]`.
+1. یک نگاشتِ کوتاه اضافه کن (مطابق پروتوتایپ): `شنبه→شنبه، یکشنبه→یک، دوشنبه→دو، سه‌شنبه→سه، چهارشنبه→چهار، پنجشنبه→پنج، جمعه→جمعه`. تابعِ `getCustomDayName` را نگه‌دار ولی خروجی‌اش را از این نگاشت عبور بده (نامِ کوتاه در کپسولِ هفتهٔ جاری نمایش داده شود).
+2. گپِ گریدِ هفتهٔ جاری از `gap-1 sm:gap-2` به `gap-1 sm:gap-1.5` تغییر کند.
+3. اسپنِ نامِ روز: `truncate w-full text-center text-[8px] sm:text-[9px]` و کپسول کمی بزرگ‌تر: به‌جای `style={{height:'4.5rem'}}` از کلاسِ `h-[64px] sm:h-[70px]` استفاده کن (حذفِ استایلِ اینلاین).
+4. عددِ روز و نقطهٔ «امروز» بدون تغییرِ منطق باقی بماند؛ فقط اطمینان از `leading-none`.
 
 **محدودیت‌های اختصاصی تسک:**
-- **نباید:** منطق onboarding (slides, step management) را تغییر بدهی.
-- **نباید:** منطق احراز هویت (Supabase OTP) را تغییر بدهی.
-- **باید:** `pb-safe` و `pt-safe` حفظ شوند.
+- **باید:** نامِ کوتاه فقط برای کپسولِ هفتهٔ جاری؛ بخشِ «روزهای آینده» (که از قبل `.slice(0,3)` دارد) دست‌نخورده.
+- **نباید:** تغییرِ منطقِ `weekDays`/`nextWeekDays`/`onDateChange`؛ استفاده از نامِ کامل در کپسول.
+
+**معیار پذیرش میکرو:**
+- در عرضِ ۳۶۰px موبایل، هیچ نامِ روزی از کپسول بیرون نمی‌زند و کلیپ نمی‌شود.
+- ۷ کپسول با گپِ کوچک‌تر جا می‌شوند؛ روزِ انتخاب‌شده `bg-primary text-black` و خوانا است.
 
 **آرایه کانتکست ماشین‌خوان:**
 ```json
-CONTEXT_FILES: ["features/billing/pages/SubscriptionPage.tsx", "features/billing/components/SubscriptionModal.tsx", "features/billing/components/UsageMeter.tsx", "features/onboarding/Onboarding.tsx", "features/onboarding/components/NameStep.tsx", "features/onboarding/components/SlideCard.tsx", "features/onboarding/components/SlideViewer.tsx", "components/Auth.tsx", "components/NetworkBanner.tsx", "components/ui/ToastNotifications.tsx"]
+CONTEXT_FILES: ["features/dashboard/components/WeekCalendar.tsx", "utils/dateUtils.ts", "dashboard_redisign/index.html"]
 ```
 
 ---
 
-### تسک L2-26: ریدیزاین استایل `HabitStatsView.tsx` و `ProjectDetailsModal.tsx`
+### [X] تسک L3-3: منحنیِ صاف + ریسپانسیوِ داخلیِ نمودار بهره‌وری (`ProductivityChart.tsx` - تکمیل شد)
 
-**عنوان:** اعمال توکن‌های Cyber-Lime روی آمار عادت و مودال جزئیات پروژه
+**عنوان:** جایگزینیِ خطِ شکسته با منحنیِ Catmull-Rom + استکِ موبایل / ستونِ دسکتاپ.
 
 **راهنمای پیاده‌سازی فنی:**
-1. در `HabitStatsView.tsx`:
-   - زنجیره فعلی: حذف `from-orange-500/10 to-amber-500/5 border-orange-500/15` → `from-[var(--color-primary)]/10 to-[var(--color-primary)]/5 border-[var(--border-neon)]`. آیکن: حذف `text-orange-500` → `text-[var(--color-primary)]`. عدد: حذف `text-orange-400` → `text-[var(--color-primary)]`.
-   - زنجیره طولانی‌ترین: حذف `from-sky-500/10 to-blue-500/5 border-sky-500/15` → `from-[var(--color-primary)]/10 to-[var(--color-primary)]/5 border-[var(--border-neon)]`. آیکن: حذف `text-sky-400` → `text-[var(--color-primary)]`. عدد: حذف `text-sky-400` → `text-[var(--color-primary)]`.
-   - heatmap: حذف `bg-zinc-900 border-white/5` → `glass-card border-[var(--border-subtle)]`.
-   - متن‌ها: `text-white` → `text-[var(--text-main)]`. `text-zinc-400` → `text-[var(--text-muted)]`. `text-zinc-500` → `text-[var(--text-muted)]`.
-
-2. در `ProjectDetailsModal.tsx`:
-   - backdrop: حذف `bg-black/75` → `bg-black/40 dark:bg-black/70`.
-   - بدنه: حذف `bg-slate-900 border-slate-700/80` → `bg-[var(--bg-card)] border-[var(--border-subtle)]`.
-   - تب‌ها: `colors.text` و `colors.bg` از `colorClasses` آپدیت شده (تسک L2-22) استفاده می‌کنند.
-   - آیتم‌ها: حذف `bg-zinc-900/45 hover:bg-zinc-900 border-white/5 hover:border-zinc-800` → `glass-card hover:bg-[var(--nav-hover-bg)] border-[var(--border-subtle)]`.
-   - متن: حذف `text-zinc-200` → `text-[var(--text-main)]`. حذف `text-zinc-500` → `text-[var(--text-muted)]`.
-   - آیکن edit: حذف `text-zinc-600 group-hover:text-sky-450` → `text-[var(--text-muted)] group-hover:text-[var(--color-primary)]`.
+1. **منحنی:** `pathD`ِ فعلی (که با `L` ساخته می‌شود) را با یک تابعِ خالصِ هموارساز جایگزین کن که از `points` مسیرِ `C` (بزیهٔ مکعبی) تولید می‌کند (الگوریتمِ Catmull-Rom→Cubic؛ فرمول در `ARCHITECTURE.md` §L3.۳). داخلِ همان `useMemo` بماند. `strokeLinejoin="round"` و `strokeLinecap="round"` حفظ شوند.
+2. **ریسپانسیوِ داخلی:** کانتینرِ ریشه از `flex gap-4` به `flex flex-col lg:flex-row gap-3 lg:gap-4` تغییر کند. ستونِ اطلاعاتِ هفته/ماه: در موبایل یک **ردیفِ افقیِ بالا** (`w-full flex-row justify-between`)، در دسکتاپ ستونِ کناری (`lg:w-[38%] lg:flex-col`). ارتفاعِ ثابتِ دسکتاپ در موبایل با `min-h-[200px]` (نه `h-` قیچی‌کننده).
+3. لیبل‌های روز (اختیاری، یافتهٔ L3-X4): در صورتِ امکان از `weekData` مشتق شوند تا با ترتیبِ داده هماهنگ بمانند؛ در غیر این صورت ثابت بماند.
+4. `preserveAspectRatio="none"` مطابقِ پروتوتایپ بماند؛ فقط اگر کشیدگیِ strokeWidth زشت بود، در همین تسک یادداشت شود (تغییرش خارج از دامنه است مگر لازم).
 
 **محدودیت‌های اختصاصی تسک:**
-- **نباید:** منطق stats، tabs، filtering را تغییر بدهی.
+- **باید:** منحنی داده‌محور بماند (از `points`)، نه مختصاتِ ثابتِ پروتوتایپ. کاشی `tile-ink` (همیشه تیره) و متونِ سفید حفظ شوند.
+- **نباید:** افزودنِ d3/کتابخانه؛ کپیِ `M 0 80 Q 25 80 ...`ِ پروتوتایپ؛ تغییرِ `useMemo`های محاسبهٔ نرخ.
+
+**معیار پذیرش میکرو:**
+- خطِ روند در همهٔ حالت‌ها گرد و بدونِ گوشهٔ تیز است.
+- در عرضِ موبایل، کپسولِ هفته/ماه بالای نمودار می‌نشیند و نمودار زیرِ آن کشیده نمی‌شود/له نمی‌شود؛ در `lg:` چیدمانِ ستونیِ کناری بازمی‌گردد.
 
 **آرایه کانتکست ماشین‌خوان:**
 ```json
-CONTEXT_FILES: ["features/habits/components/HabitStatsView.tsx", "features/projects/components/ProjectDetailsModal.tsx"]
+CONTEXT_FILES: ["features/dashboard/components/ProductivityChart.tsx", "contexts/DataContext.tsx", "utils/dateUtils.ts", "dashboard_redisign/index.html"]
 ```
 
 ---
 
-### تسک L2-27: اصلاح هک autofill در `index.css` برای لایت‌مود
+### [X] تسک L3-4: بازگرداندنِ هویتِ هدرِ قدیمی — فقط موبایل، توکنیزه (`DashboardHeader.tsx` - تکمیل شد)
 
-**عنوان:** اصلاح رنگ پس‌زمینه autofill در لایت‌مود
-
-> **اصلاح بازنگری:** نسخه‌ی قبلیِ این تسک از نظر CSS نادرست بود (گفته بود قانونِ `input:-webkit-autofill` را «داخل `:root`» بگذار؛ اما `:root` خودِ المنتِ html است، نه wrapper — نمی‌توان یک سلکتورِ دیگر را داخلش گذاشت). رویکرد صحیح: **توکن‌محور با یک قانونِ واحد**.
+**عنوان:** بازسازیِ رینگِ نئونیِ دورِ آواتار + «سلام {نام}» + وردمارکِ HEXER، با توکن و با حفظِ toggle تم.
 
 **راهنمای پیاده‌سازی فنی:**
-1. اگر در L2-1 بلوک autofillِ توکن‌محور را اضافه کرده‌ای، این تسک قبلاً انجام شده — رد شو.
-2. در `index.css`، بلوکِ فعلیِ autofill (که `#09090b` را هاردکد می‌کند) را با **یک قانونِ واحدِ توکن‌محور** جایگزین کن:
-```css
-input:-webkit-autofill, input:-webkit-autofill:hover, input:-webkit-autofill:focus,
-textarea:-webkit-autofill, textarea:-webkit-autofill:hover, textarea:-webkit-autofill:focus,
-select:-webkit-autofill, select:-webkit-autofill:hover, select:-webkit-autofill:focus {
-  -webkit-box-shadow: 0 0 0px 1000px var(--autofill-bg) inset !important;
-  -webkit-text-fill-color: var(--autofill-text) !important;
-  caret-color: var(--autofill-text);
-  transition: background-color 5000s ease-in-out 0s;
-}
-```
-3. مقادیرِ `--autofill-bg`/`--autofill-text` در `:root` (سفید/مشکی) و `.dark` (`#09090b`/سفید) از L2-1 می‌آیند. **هیچ مقدار رنگیِ هاردکدی در خودِ قانونِ autofill نماند.**
+1. مرجعِ بصری: `DashboardHeader(old).tsx` (فقط خواندنی). هویتِ آن را در `DashboardHeader.tsx` بازبساز: (الف) دکمهٔ آواتار با یک SVGِ رینگِ پیشرفت دورِ آن بر اساسِ `todayProgress` (`strokeDasharray`/`strokeDashoffset`)، (ب) «سلام {firstName}» + زیرنویسِ درصد، (ج) وردمارکِ «HEXER» در سمتِ چپ (RTL end).
+2. **توکنیزه‌سازیِ اجباری (خوانا در هر دو تم):** کانتینر `bg-[var(--bg-app-glass)] backdrop-blur-xl border-b border-subtle`. متن‌ها با `--text-main`/`--text-muted`. رینگ: track با `--border-subtle`، پیشرفت با `var(--color-primary)` (یا نئون فقط در `dark:`). وردمارکِ HEXER: `text-[var(--text-main)] font-black tracking-tight` — **گرادیانِ بنفش/آبیِ `bg-clip-text` ممنوع** (نبایدِ سیستم طراحی).
+3. **حفظِ toggle تم (حیاتی):** دکمهٔ toggle تمِ هدرِ فعلی را عیناً نگه‌دار (کلاسِ `theme-toggle glass-card` + دو SVGِ `.theme-icon-light`/`.theme-icon-dark` **بدونِ `hidden`** + `onClick` که `document.documentElement.classList.toggle('dark')` و `localStorage` را ست می‌کند).
+4. **نامِ نمایشی:** از `profile.full_name → firstName` استفاده کن (نه `user.email[0]`). اگر نام خالی بود، «رفیق».
+5. چون `DashboardHeader` فقط در شاخهٔ موبایلِ `Dashboard.tsx` رندر می‌شود، هیچ گاردِ `lg:hidden` لازم نیست؛ اما اگر افزوده شد، دسکتاپ را نشکن.
 
 **محدودیت‌های اختصاصی تسک:**
-- **نباید:** `transition: background-color 5000s ease-in-out 0s` را حذف کنی.
-- **نباید:** سلکتورِ دیگری داخلِ `:root` یا `.dark` لانه کنی — فقط مقادیرِ توکن در آن‌ها تعریف می‌شوند و قانونِ autofill در سطحِ بالا با `var()` نوشته می‌شود.
-- **باید:** در لایت‌مود پس‌زمینه autofill سفید و متن مشکی، و در دارک‌مود پس‌زمینه `#09090b` و متن سفید شود.
+- **باید:** toggle تم حفظ شود؛ خوانایی در لایت‌مود کامل باشد؛ اینترفیسِ props (`onOpenProfile`, `todayProgress`, `hasTasksToday`) بدون تغییر بماند.
+- **نباید:** رنگِ هارد‌کدِ `bg-gray-950`/`text-white`/`text-gray-400`؛ گرادیانِ بنفش؛ حذفِ toggle؛ رندرِ این هدر در دسکتاپ.
+
+**معیار پذیرش میکرو:**
+- در موبایلِ لایت‌مود همهٔ متن‌ها و رینگ خوانا؛ در دارک‌مود جلوهٔ نئونی حس می‌شود.
+- دکمهٔ toggle تم کار می‌کند و آیکن خورشید/ماه درست جابه‌جا می‌شود (CSS-محور، نه `hidden`).
+- دسکتاپ بدون تغییر (هدر رندر نمی‌شود).
 
 **آرایه کانتکست ماشین‌خوان:**
 ```json
-CONTEXT_FILES: ["index.css"]
+CONTEXT_FILES: ["features/dashboard/components/DashboardHeader.tsx", "features/dashboard/components/DashboardHeader(old).tsx", "features/dashboard/Dashboard.tsx", "contexts/AuthContext.tsx", "contexts/DataContext.tsx", "components/icons"]
 ```
 
 ---
 
-## ترتیب اجرای توصیه‌شده
+### [X] تسک L3-5: رفعِ کنتراستِ لایت‌مودِ مودال + ممیزیِ کامپوننت‌ها با سیستم طراحی (`WeeklyReportModal.tsx` - تکمیل شد)
 
-1. **L2-1** (توکن‌های CSS: کانالی `*-rgb` + مقدار-کامل + autofill توکن‌محور + کلاس‌های آیکن تم) + **L2-2** (`tailwind.config`: `darkMode:'class'` + مَپِ رنگ‌های کانالی + اسکریپت pre-paint) — پایه‌ی همه‌چیز. **این دو اول و حتماً با هم.**
-2. **L2-3** (Sidebar) + **L2-5** (Header) + **L2-6** (WidgetContainer) + **L2-16** (BottomNav) — موازی
-3. **L2-14** (ProductivityChart — Presentational با داده‌ی واقعی) + **L2-15** (FocusTimer — پومودوروی کلاینتی) — موازی (کامپوننت‌های جدید)
-4. **L2-7** (QuickCapture) + **L2-8** (StatsOverview) + **L2-9** (WeekCalendar) + **L2-10** (TodaysPlan) + **L2-11** (KeyProjects) — موازی. ~~L2-12 (HabitTracker)~~ و ~~L2-13 (TodaysNotes)~~ **منسوخ** (از رندر حذف، فایل می‌ماند).
-5. **L2-18** (App.tsx — سایدبارِ گلوبال + ProfileModalِ گلوبال + پس‌زمینه) — **قبل یا هم‌زمان با L2-4** (چون ساختارِ سایدبار/پروفایل به هم وابسته‌اند).
-6. **L2-4** (Dashboard orchestration — گرید دوستونه، بدون سایدبار) — بعد از ۲، ۳، ۴، ۵.
-7. **L2-17** (WeeklyReportModal) — مستقل.
-8. **فاز دوم:** L2-19 تا L2-27 — همه موازی (فقط رنگ و استایل). L2-27 (autofill) اگر در L2-1 انجام شده، رد شود.
+**عنوان:** حذفِ رنگِ لایمِ پیش‌زمینه‌ای؛ توکنیزه‌سازیِ متن/بَج/بوردر مطابق سیستم طراحی.
 
-> **هشدارِ تداخلِ Read/Write:** L2-4 و L2-18 هر دو `App.tsx`/`Dashboard.tsx` را لمس می‌کنند (انتقال Sidebar و ProfileModal)؛ این دو را **موازی اجرا نکن** — اول L2-18 سپس L2-4.
+**راهنمای پیاده‌سازی فنی:**
+1. در `WeeklyReportModal.tsx` هر `text-[var(--color-primary)]` که **رنگِ متن** است حذف شود:
+   - `healthRating.color` برای «خوب»/«نیاز به بهبود»: به توکنِ سمنتیک تغییر کن (مثلاً «خوب»→`text-[var(--semantic-success)]`، «نیاز به بهبود»→`text-[var(--semantic-warning)]`)؛ «بحرانی»→`--semantic-error`؛ «عالی»→`--semantic-success`.
+   - عددِ «با تاخیر»: از `text-[var(--color-primary)]` به `text-[var(--text-main)]` (یا `--semantic-warning`).
+   - بَج‌های «به‌موقع»/«در جریان»: `bg-primary/10 text-[var(--color-primary)] border border-[var(--border-neon)]` → `bg-primary/10 text-[var(--text-main)] border border-[var(--border-subtle)]` (بوردرِ دائمیِ قابل‌دیدن در لایت).
+2. سایرِ توکن‌ها (`--bg-card`, `--text-main`, `--text-muted`, `--shadow-card`, `--semantic-error-soft`) که درست‌اند حفظ شوند.
+3. **یافتهٔ L3-X2 (اختیاری، اولویت متوسط):** برای فعال‌شدنِ انیمیشنِ exit، گیتِ `if (!isOpen) return null;` را از بالای return بردار و به‌جای آن رندرِ شرطیِ محتوای داخلِ `<AnimatePresence>` را با `isOpen &&` انجام بده (یا گیت در والد). اگر ریسکِ رفتاری داشت، فقط در رجیستر بماند و لمس نشود.
+4. **ممیزیِ سیستم طراحی (خواستهٔ کاربر «همهٔ کامپوننت‌ها»):** قانونِ §L3-الف را روی همهٔ کامپوننت‌های *فعالِ* رندرشونده اعمال کن؛ اگر جای دیگری `--color-primary` رنگِ متن روی سطحِ روشن بود، مطابق همین الگو اصلاح کن. **به فایل‌های مرده دست نزن** (L3-8).
 
----
+**محدودیت‌های اختصاصی تسک:**
+- **باید:** رنگِ لایم فقط پس‌زمینه با متنِ `--text-on-primary`؛ هر تغییری در هر دو تم چک شود.
+- **نباید:** تغییرِ منطقِ محاسبهٔ `healthScore`/`weekBoundaries`/تب‌ها؛ دست‌زدنِ `HabitTracker`/`TodaysNotes`/`QuickCapture`.
 
-## معیار پذیرش نهایی
+**معیار پذیرش میکرو:**
+- در لایت‌مود، همهٔ لیبل‌ها/اعداد/بَج‌های مودالِ گزارش هفتگی خوانا و بوردردار‌اند (هیچ متنِ لیمویی روی سفید).
+- در دارک‌مود ظاهر حفظ شده.
+- هیچ `text-[var(--color-primary)]`ِ متنی در کامپوننت‌های فعال باقی نمانده.
 
-1. ظاهر داشبورد دسکتاپ دوستونه (سایدبارِ گلوبال + ۲ ستونِ محتوا) و گلس باشد؛ **بدون قیچی‌شدنِ محتوا** (آنتی‌پترن #۲۱).
-2. **سایدبارِ دسکتاپ روی همه‌ی صفحات (کارها/یادداشت‌ها/پروژه‌ها/...) باقی بماند و هرگز با تعویض صفحه ناپدید نشود** (رفع تله‌ی ناوبری).
-3. ظاهر موبایل روان و بومی، با هدر فعلی حفظ‌شده (فقط رنگ‌ها تغییر کرده) و BottomNav فقط در موبایل.
-4. هیچ استیت/مودال/هندلرِ زنده‌ای حذف یا شکسته نشده باشد. (تنها جابجاییِ مجاز: انتقالِ `ProfileModal`+`isProfileOpen` از Dashboard به App.)
-5. **همه‌ی ویجت‌های ماکت ساخته و رندر شده باشند:** ProductivityChart (با داده‌ی واقعی) و FocusTimer (پومودوروی کلاینتیِ کارا با شمارش معکوس). **`TodaysNotes` و `HabitTracker` از رندرِ داشبورد حذف شده باشند، ولی فایل‌هایشان موجود بمانند** (Delete نشده).
-6. **شفافیت درست کار کند:** هیچ `bg-[var(--color-primary)]/NN` در کد نباشد؛ Badgeها/پس‌زمینه‌های شفاف با کلاس‌های کانالی (`bg-primary/10` و...) نمایش داده شوند و ناپدید نشوند.
-7. **تم light/dark با toggle + localStorage کار کند و `dark:`های Tailwind نیز با کلاس همگام باشند** (`darkMode:'class'`) — بدون split-brain. دکمه‌ی toggle بشکند ممنوع؛ روی آیکن‌های تم هیچ کلاس `hidden`ی نباشد.
-8. هک‌های iOS/Safari کاملاً سالم باشند.
-9. **پس‌زمینه دقیقاً یک‌بار در `App.tsx` و توکن‌محور (`--bg-base`، بدون تصویر خارجی)** باشد؛ در آفلاین هم کنتراستِ کارت‌های گلس سالم بماند.
-10. هیچ فایل مرده‌ای در `components/` ویرایش نشده باشد؛ هیچ داده‌ی ساختگی به کاربر نمایش داده نشود؛ هیچ کامپوننتی دو بار Mount نشود.
-11. autofill در هر دو مود توکن‌محور و خوانا (لایت: سفید/مشکی، دارک: `#09090b`/سفید).
-12. هیچ پکیج npm جدیدی نصب نشده و `npm run build` بدون خطا عبور کند.
-13. هیچ کدی از `dashboard_redisign/index.html` کپی نشده باشد.
+**آرایه کانتکست ماشین‌خوان:**
+```json
+CONTEXT_FILES: ["features/dashboard/components/WeeklyReportModal.tsx", "index.css", "dashboard_redisign/DesignSystem.md"]
+```
 
 ---
 
-## وضعیت تکمیل تسک‌ها (Batch 17: Final UI Components)
-- [x] **NetworkBanner.tsx**: بازطراحی کامل با استفاده از توکن‌های سمانتیک اخطار/خطا (`bg-[var(--semantic-error)] text-white`) و آیکن و پالس سفید بدون هرگونه رنگ استاتیک زرد/قرمز.
-- [x] **ToastNotifications.tsx**: بازطراحی کامل کارت‌های اعلان به صورت شیشه‌ای و پریمیوم (`bg-[var(--bg-card)] backdrop-blur-xl border border-[var(--border-subtle)] shadow-2xl`) به همراه آیکن‌های موفقیت/خطا با رنگ‌های سمانتیک (`text-[var(--semantic-success)]` و `text-[var(--semantic-error)]`) و دکمه‌ها و متون منطبق با تم.
-- [x] **تایپ‌سیفتی و کارایی**: کدهای هر دو کامپوننت کامپایل و تایید نهایی شدند.
+### [X] تسک L3-6: پرداختِ لِی‌اوتِ موبایلِ داشبورد (`Dashboard.tsx` - تکمیل شد)
+
+**عنوان:** هم‌ترازیِ فاصله‌گذاری و اطمینان از ریسپانسیوِ ستونِ موبایل با پروتوتایپ.
+
+**راهنمای پیاده‌سازی فنی:**
+1. در شاخهٔ موبایلِ `Dashboard.tsx` (`#mobile-dashboard`)، فاصله‌گذاری را با پروتوتایپ هم‌تراز کن: از `flex flex-col gap-4 p-4` به `flex flex-col gap-6 px-5 pt-5` (مطابق موبایلِ پروتوتایپ). فاصله از BottomNav (§۷.۵) حفظ شود.
+2. اطمینان از این‌که پس از تسک‌های L3-1..L3-3 هر ویجت در ستونِ موبایل بدونِ سرریزِ افقی رندر می‌شود (هیچ عرضِ ثابتِ بزرگ‌تر از عرضِ صفحه). اگر ویجتی هنوز عرضِ ثابت دارد، در همان ویجت (نه اینجا) اصلاح شود — این تسک فقط کانتینرِ داشبورد است.
+3. ترتیبِ ویجت‌های موبایل مطابقِ فعلی/پروتوتایپ حفظ شود؛ `DashboardHeader` بالای همه.
+
+**محدودیت‌های اختصاصی تسک:**
+- **باید:** فقط کلاس‌های کانتینرِ موبایل تغییر کند؛ شاخهٔ دسکتاپ دست‌نخورده.
+- **نباید:** افزودن/حذفِ ویجت؛ تغییرِ منطقِ `useMediaQuery`/`selectedDayProgressStats`.
+
+**معیار پذیرش میکرو:**
+- در موبایل هیچ اسکرولِ افقی وجود ندارد؛ فاصله‌ها یکنواخت و منطبق با پروتوتایپ است.
+- دسکتاپ کاملاً بدون تغییر.
+
+**آرایه کانتکست ماشین‌خوان:**
+```json
+CONTEXT_FILES: ["features/dashboard/Dashboard.tsx", "dashboard_redisign/index.html"]
+```
+
+---
+
+### [X] تسک L3-7: ممیزیِ نهایی و رجیسترِ فایل‌های مرده (بدون کد — Verification Gate - تکمیل شد)
+
+**عنوان:** بازبینیِ کیفیت + مستندسازیِ فایل‌های مرده (هیچ ویرایشِ کدی).
+
+**راهنمای پیاده‌سازی فنی:**
+1. فهرستِ فایل‌های مرده را تأیید کن: `TodaysNotes.tsx`, `HabitTracker.tsx`, `QuickCapture.tsx` (رنگ‌های هارد‌کدِ تیره؛ در لایت‌مود نامرئی؛ اما از رندرِ داشبورد حذف‌اند طبقِ نبایدِ #۲۲). این‌ها **ویرایش نشوند**؛ فقط اگر روزی به رندر بازگردند، اول باید توکنیزه شوند.
+2. یک بازبینیِ چشمیِ کامل روی هر دو تم و روی موبایل/دسکتاپ برای همهٔ ویجت‌های فعال انجام بده و انطباق با معیارهای L3-1..L3-6 را تأیید کن.
+
+**محدودیت‌های اختصاصی تسک:**
+- **نباید:** هیچ تغییرِ کدی در فایل‌های مرده؛ هیچ فایلِ جدید؛ هیچ Delete.
+
+**معیار پذیرش میکرو:**
+- گزارشِ کوتاهِ انطباق برای هر ۶ تسکِ قبل ارائه شود؛ فایل‌های مرده بدون تغییر و مستند بمانند.
+
+**آرایه کانتکست ماشین‌خوان:**
+```json
+CONTEXT_FILES: ["features/dashboard/components/TodaysNotes.tsx", "features/dashboard/components/HabitTracker.tsx", "features/dashboard/components/QuickCapture.tsx"]
+```
+
+---
+
+## ترتیب اجرای توصیه‌شدهٔ فاز L3 (رعایتِ تداخلِ Read/Write)
+
+> هیچ دو تسکی که روی یک فایل می‌نویسند نباید هم‌زمان اجرا شوند. تسک‌های L3 روی فایل‌های *مجزا* عمل می‌کنند، پس می‌توانند مستقل پیش بروند؛ ترتیبِ زیر برای انسجامِ بازبینی توصیه می‌شود:
+1. **L3-1** (`StatsOverview.tsx`)
+2. **L3-2** (`WeekCalendar.tsx`)
+3. **L3-3** (`ProductivityChart.tsx`)
+4. **L3-4** (`DashboardHeader.tsx`)
+5. **L3-5** (`WeeklyReportModal.tsx` + ممیزیِ کنتراست)
+6. **L3-6** (`Dashboard.tsx` — پس از L3-1..L3-3 تا سرریزِ افقی سنجیده شود)
+7. **L3-7** (بازبینیِ نهایی — بدون کد)
+
+## معیار پذیرش نهاییِ فاز L3
+۱. هر ۶ محورِ گزارش‌شدهٔ کاربر رفع شده و در موبایل/دسکتاپ و لایت/دارک بی‌نقص است.
+۲. هیچ متن/بوردری در لایت‌مود نامرئی نیست؛ `--color-primary` هیچ‌جا رنگِ متنِ روی سطحِ روشن نیست.
+۳. کپسول‌های «امروز در یک نگاه» هرگز سرریز/فروپاشی/دوخطی نمی‌شوند.
+۴. نامِ روزهای تقویم داخلِ کپسول جا می‌شود.
+۵. منحنیِ نمودار گرد است و نمودار در موبایل استکِ عمودیِ درست دارد.
+۶. هدرِ موبایل هویتِ قدیمی را دارد، توکنیزه و خوانا در هر دو تم، و toggle تم کار می‌کند؛ دسکتاپ بدون تغییر.
+۷. `npm run build` بدون خطا و بدونِ هشدارِ جدیدِ React عبور می‌کند.
+۸. هیچ منطق/سرویس/هوک/دیتابیس تغییر نکرده؛ هیچ فایلی ساخته یا Delete نشده؛ هیچ کدی از `index.html` کپی نشده.

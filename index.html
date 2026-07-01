@@ -33,16 +33,18 @@
     <style>
       body {
         font-family: 'Vazirmatn', sans-serif;
-        background-color: var(--bg-base);
+        background-color: transparent;
       }
     </style>
     <link rel="stylesheet" href="/index.css">
     <script>
       (function () {
         var t = localStorage.getItem('hexer-theme');
-        if (t === 'dark' || (!t && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+        var isDark = t === 'dark' || (!t && window.matchMedia('(prefers-color-scheme: dark)').matches);
+        if (isDark) {
           document.documentElement.classList.add('dark');
         }
+        document.querySelector('meta[name="theme-color"]')?.setAttribute('content', isDark ? '#121212' : '#F4F5F7');
       })();
     </script>
 <script type="importmap">
