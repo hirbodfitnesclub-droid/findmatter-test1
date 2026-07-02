@@ -10,8 +10,8 @@ export const setPendingDraft = (draft: DraftMessage) => {
   pendingDraft = draft;
 };
 
-export const consumePendingDraft = (): DraftMessage | null => {
-  const d = pendingDraft;
+export const peekPendingDraft = (): DraftMessage | null => pendingDraft;
+
+export const clearPendingDraft = () => {
   pendingDraft = null;
-  return d;
 };

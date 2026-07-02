@@ -5,11 +5,12 @@ import { Priority } from '../../../types';
 
 interface StatsOverviewProps {
   onOpenWeeklyReport: () => void;
+  onOpenOverdueModal: () => void;
 }
 
 const dashW = (p: number) => Math.min(60, Math.max(12, Math.round(p)));
 
-export const StatsOverview: React.FC<StatsOverviewProps> = ({ onOpenWeeklyReport }) => {
+export const StatsOverview: React.FC<StatsOverviewProps> = ({ onOpenWeeklyReport, onOpenOverdueModal }) => {
   const { tasks, projects, selectedDate } = useData();
 
   const stats = useMemo(() => {
@@ -131,16 +132,22 @@ export const StatsOverview: React.FC<StatsOverviewProps> = ({ onOpenWeeklyReport
           </div>
           
           {/* Row 3 */}
-          <div className="bg-[#16161A] rounded-full h-[24px] w-full flex items-center justify-between p-[2px]">
+          <div 
+            onClick={onOpenOverdueModal}
+            className="bg-[#16161A] hover:bg-[#202024] active:scale-[0.98] transition-all rounded-full h-[24px] w-full flex items-center justify-between p-[2px] cursor-pointer group"
+          >
             <div className="text-white text-[11px] font-bold pr-2.5">
               عقب افتاده: {stats.overdue}
             </div>
-            <button className="text-white/80 hover:text-white hover:scale-110 active:scale-95 transition p-1 ml-1" title="مشاهده">
+            <div 
+              className="text-white/80 group-hover:text-white group-hover:scale-110 transition p-1 ml-1" 
+              title="مشاهده"
+            >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" />
                 <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
               </svg>
-            </button>
+            </div>
           </div>
         </div>
 

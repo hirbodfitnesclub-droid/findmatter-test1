@@ -108,7 +108,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </button>
       </nav>
 
-      <div className="mt-auto px-2 pb-2">
+      <div className="mt-auto px-2 pb-6">
         <div className="glass-card p-3.5 rounded-[var(--radius-md)] flex items-center justify-between">
           <button
             onClick={onOpenProfile}

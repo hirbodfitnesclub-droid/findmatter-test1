@@ -75,10 +75,10 @@ export const WeekCalendar: React.FC<WeekCalendarProps> = ({ selectedDate, onDate
   }, [weekDays]);
 
   return (
-    <div className="glass-panel px-3.5 py-3 rounded-[var(--radius-lg)] shrink-0 min-h-[200px] flex flex-col justify-between" id="week-calendar-panel">
+    <div className="glass-panel px-3.5 py-3 rounded-[var(--radius-lg)] shrink-0 lg:min-h-[200px] flex flex-col justify-between" id="week-calendar-panel">
       {/* Header Info (Month Year) */}
       <div className="flex items-center justify-center">
-        <span className="text-xs font-bold text-muted tracking-wide bg-[var(--bg-card)] px-3 py-1 rounded-full border border-subtle">
+        <span className="text-xs font-bold text-muted tracking-wide">
           {headerInfo}
         </span>
       </div>
@@ -118,7 +118,7 @@ export const WeekCalendar: React.FC<WeekCalendarProps> = ({ selectedDate, onDate
         ))}
       </div>
 
-      <div className="border-t border-subtle/30 pt-2 mt-2">
+      <div className="hidden lg:block border-t border-subtle/30 pt-2 mt-2">
         <div className="text-[9px] text-muted font-black mb-1.5 px-1">روزهای آینده</div>
         <div className="grid grid-cols-7 gap-1 items-center">
           {/* 7 کپسول کوچک برای روزهای هفته بعد */}

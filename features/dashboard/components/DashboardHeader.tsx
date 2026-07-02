@@ -52,7 +52,7 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
   }
   
   return (
-    <header className="pt-8 pb-4 px-5 sticky top-0 z-20 backdrop-blur-xl border-b border-[var(--border-subtle)] bg-[var(--bg-app-glass)]">
+    <header className="pt-app-safe pb-3 px-5 sticky top-0 z-20 backdrop-blur-xl border-b border-[var(--border-subtle)] bg-[var(--bg-app-glass)]">
       <div className="max-w-7xl mx-auto flex items-center justify-between">
         {/* Right Side: Greeting (RTL Start) */}
         <div className="flex flex-col justify-center">

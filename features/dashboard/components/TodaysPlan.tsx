@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { useData } from '../../../contexts/DataContext';
-import { isSameTehranDay } from '../../../utils/dateUtils';
+import { isSameTehranDay, getTehranDateString, compareTehranDates } from '../../../utils/dateUtils';
 import { Priority } from '../../../types';
 import { CheckIcon, ListChecksIcon } from '../../../components/icons';
 
@@ -60,8 +60,21 @@ const hasTime = (dueDate: Date | string | undefined | null): boolean => {
   return formatTime(dueDate) !== '';
 };
 
-export const TodaysPlan: React.FC = () => {
+interface TodaysPlanProps {
+  onOpenOverdueModal: () => void;
+}
+
+export const TodaysPlan: React.FC<TodaysPlanProps> = ({ onOpenOverdueModal }) => {
   const { tasks, selectedDate, toggleTaskCompletion } = useData();
+
+  const overdueCount = useMemo(() => {
+    const todayStr = getTehranDateString(new Date());
+    return tasks.filter(t => 
+      t.status !== 'done' && 
+      t.due_date && 
+      compareTehranDates(t.due_date, todayStr) < 0
+    ).length;
+  }, [tasks]);
 
   const todaysTasks = useMemo(() => {
     return tasks
@@ -102,7 +115,21 @@ export const TodaysPlan: React.FC = () => {
 
   return (
     <div className="glass-panel rounded-[var(--radius-lg)] p-5 h-full flex flex-col" id="todays-plan-panel">
-      <h2 className="text-lg font-bold text-[var(--text-main)] mb-4">برنامه امروز</h2>
+      <div className="flex items-center justify-between mb-4" dir="rtl">
+        <h2 className="text-lg font-bold text-[var(--text-main)]">برنامه امروز</h2>
+        {overdueCount > 0 && (
+          <button 
+            onClick={onOpenOverdueModal}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[var(--semantic-error-soft)] border border-[var(--semantic-error)]/20 text-[var(--semantic-error)] text-xs font-bold hover:scale-[1.03] active:scale-95 transition-all shadow-sm cursor-pointer"
+          >
+            <span className="relative flex h-1.5 w-1.5 shrink-0">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-error opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-error"></span>
+            </span>
+            <span>عقب افتاده ({overdueCount.toLocaleString('fa-IR')})</span>
+          </button>
+        )}
+      </div>
       {todaysTasks.length > 0 ? (
         <div className="flex-1 min-h-0 max-h-[19rem] overflow-y-auto soft-scroll space-y-3 pl-2">
           {todaysTasks.map((task, index) => {

@@ -3,6 +3,7 @@ import { useData } from '../../contexts/DataContext';
 import { isSameTehranDay } from '../../utils/dateUtils';
 import { useMediaQuery } from '../../hooks/useMediaQuery';
 import { WeeklyReportModal } from './components/WeeklyReportModal';
+import { OverdueTasksModal } from './components/OverdueTasksModal';
 
 // Feature subcomponents
 import { DashboardHeader } from './components/DashboardHeader';
@@ -22,6 +23,7 @@ const Dashboard: React.FC = () => {
   } = useData();
 
   const [isReportOpen, setIsReportOpen] = useState(false);
+  const [isOverdueOpen, setIsOverdueOpen] = useState(false);
   const isDesktop = useMediaQuery('(min-width: 1024px)');
 
   // Calculate selected day's progress for the Header Ring
@@ -46,19 +48,22 @@ const Dashboard: React.FC = () => {
             <ProductivityChart />
             {/* TodaysPlan تنها کامپوننتی است که کشسان و دارای اسکرول داخلی است */}
             <div className="flex-1 min-h-0">
-              <TodaysPlan />
+              <TodaysPlan onOpenOverdueModal={() => setIsOverdueOpen(true)} />
             </div>
           </section>
           {/* ستون ۳: بافتار داده (اسکرول داخلی کل ستون برای ایمنیِ زوم) */}
           <aside className="w-[320px] shrink-0 flex flex-col gap-4 h-full overflow-y-auto soft-scroll pb-2 pr-1">
-            <StatsOverview onOpenWeeklyReport={() => setIsReportOpen(true)} />
+            <StatsOverview 
+              onOpenWeeklyReport={() => setIsReportOpen(true)} 
+              onOpenOverdueModal={() => setIsOverdueOpen(true)} 
+            />
             <WeekCalendar selectedDate={selectedDate} onDateChange={setSelectedDate} />
             <KeyProjects />
             <FocusTimer />
           </aside>
         </div>
       ) : (
-        <div className="flex flex-col gap-6 px-5 pt-5 pb-bottom-nav" id="mobile-dashboard">
+        <div className="flex flex-col gap-6 px-5 pt-0 pb-bottom-nav" id="mobile-dashboard">
           <DashboardHeader 
             onOpenProfile={() => window.dispatchEvent(new CustomEvent('hexer:open-profile'))} 
             todayProgress={selectedDayProgressStats.progress}
@@ -66,8 +71,11 @@ const Dashboard: React.FC = () => {
           />
           <WeekCalendar selectedDate={selectedDate} onDateChange={setSelectedDate} />
           <AiComposerPanel />
-          <StatsOverview onOpenWeeklyReport={() => setIsReportOpen(true)} />
-          <TodaysPlan />
+          <StatsOverview 
+            onOpenWeeklyReport={() => setIsReportOpen(true)} 
+            onOpenOverdueModal={() => setIsOverdueOpen(true)} 
+          />
+          <TodaysPlan onOpenOverdueModal={() => setIsOverdueOpen(true)} />
           <ProductivityChart />
           <KeyProjects />
           <FocusTimer />
@@ -77,6 +85,11 @@ const Dashboard: React.FC = () => {
       <WeeklyReportModal 
         isOpen={isReportOpen} 
         onClose={() => setIsReportOpen(false)} 
+      />
+
+      <OverdueTasksModal 
+        isOpen={isOverdueOpen} 
+        onClose={() => setIsOverdueOpen(false)} 
       />
     </div>
   );

@@ -10,7 +10,7 @@ import { compressImage, dataURLtoBlob } from '../../utils/imageUtils';
 import { useMediaRecorder } from './hooks/useMediaRecorder';
 import { getTehranDateString } from '../../utils/dateUtils';
 import { linkTaskNote } from '../../services/linkService';
-import { consumePendingDraft } from './composerBridge';
+import { peekPendingDraft, clearPendingDraft } from './composerBridge';
 
 // Helper to sanitize chat history to prevent leak of UUID database keys to Gemini model
 const sanitizeHistoryMessage = (text: string): string => {
@@ -109,6 +109,7 @@ const ChatView: React.FC<ChatViewProps> = ({ onEditTask, onEditNote, onEditProje
   const [selectedImageFile, setSelectedImageFile] = useState<Blob | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const draftDispatchedRef = useRef(false);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -157,13 +158,6 @@ const ChatView: React.FC<ChatViewProps> = ({ onEditTask, onEditNote, onEditProje
           setMessages([
             { id: 'initial', sender: 'ai', text: 'سلام! خوش آمدید. چطور می‌توانم در مدیریت کارهایتان به شما کمک کنم؟' }
           ]);
-        }
-
-        // After setting messages/session:
-        const draft = consumePendingDraft();
-        if (draft && (draft.text?.trim() || draft.imageFile || draft.audioFile)) {
-          // Use setTimeout to ensure state is settled before triggering send
-          setTimeout(() => handleSendMessage(draft.text || '', { imageFile: draft.imageFile, audioFile: draft.audioFile }), 100);
         }
       }
     } catch (err) {
@@ -306,6 +300,8 @@ const ChatView: React.FC<ChatViewProps> = ({ onEditTask, onEditNote, onEditProje
       
       if (dbErr) throw dbErr;
 
+      clearPendingDraft();
+
       const userChatMessage: ChatMessage = {
         id: dbMsg.id,
         sender: 'user',
@@ -423,6 +419,15 @@ const ChatView: React.FC<ChatViewProps> = ({ onEditTask, onEditNote, onEditProje
       setIsLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (!activeSession || isReadOnly || isLoading || draftDispatchedRef.current) return;
+    const draft = peekPendingDraft();
+    if (draft && (draft.text?.trim() || draft.imageFile || draft.audioFile)) {
+      draftDispatchedRef.current = true;
+      handleSendMessage(draft.text || '', { imageFile: draft.imageFile, audioFile: draft.audioFile });
+    }
+  }, [activeSession, isReadOnly, isLoading]);
 
   const processAndSendAudio = async () => {
     if (!recordedAudio) return;

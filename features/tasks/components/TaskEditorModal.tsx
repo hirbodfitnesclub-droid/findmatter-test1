@@ -28,6 +28,18 @@ const priorityConfig = {
   [Priority.Low]: { label: 'کم', color: 'sky', text: 'text-primary', bg: 'bg-primary/10', badge: 'bg-primary/10 text-primary border-primary/30' },
 };
 
+const PropertyRow: React.FC<{ icon: React.ReactNode; label: string; children: React.ReactNode; className?: string }> = ({ icon, label, children, className }) => (
+  <div className={`flex items-center p-2 rounded-lg transition-colors min-h-[44px] ${className}`}>
+    <div className="flex items-center gap-3 w-28 flex-shrink-0 text-sm text-[var(--text-muted)]">
+      {icon}
+      <span>{label}</span>
+    </div>
+    <div className="flex-1 text-sm text-[var(--text-main)] font-medium">
+      {children}
+    </div>
+  </div>
+);
+
 export const TaskEditorModal: React.FC<TaskEditorModalProps> = ({ 
   task, 
   isOpen, 
@@ -271,18 +283,6 @@ export const TaskEditorModal: React.FC<TaskEditorModalProps> = ({
     }
     return linkedNotes;
   }, [isNew, notes, pendingLinkIds, linkedNotes]);
-
-  const PropertyRow: React.FC<{ icon: React.ReactNode; label: string; children: React.ReactNode; className?: string }> = ({ icon, label, children, className }) => (
-    <div className={`flex items-center p-2 rounded-lg transition-colors min-h-[44px] ${className}`}>
-      <div className="flex items-center gap-3 w-28 flex-shrink-0 text-sm text-[var(--text-muted)]">
-        {icon}
-        <span>{label}</span>
-      </div>
-      <div className="flex-1 text-sm text-[var(--text-main)] font-medium">
-        {children}
-      </div>
-    </div>
-  );
 
   if (!isOpen) return null;
 
