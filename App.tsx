@@ -45,11 +45,29 @@ const MainApp: React.FC = () => {
   const isDesktop = useMediaQuery('(min-width: 1024px)');
   const { user, signOut } = useAuth();
   const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const [isZenActive, setIsZenActive] = useState(false);
 
   useEffect(() => {
     const handleOpenProfile = () => setIsProfileOpen(true);
     window.addEventListener('hexer:open-profile', handleOpenProfile);
     return () => window.removeEventListener('hexer:open-profile', handleOpenProfile);
+  }, []);
+
+  useEffect(() => {
+    const handleZenMode = (e: Event) => {
+      setIsZenActive((e as CustomEvent).detail);
+    };
+    window.addEventListener('hexer:zen-mode', handleZenMode);
+    return () => window.removeEventListener('hexer:zen-mode', handleZenMode);
+  }, []);
+
+  useEffect(() => {
+    const handleOpenTaskEditor = (e: Event) => {
+      const task = (e as CustomEvent).detail;
+      setEditingTask(task);
+    };
+    window.addEventListener('hexer:open-task-editor', handleOpenTaskEditor);
+    return () => window.removeEventListener('hexer:open-task-editor', handleOpenTaskEditor);
   }, []);
   
   const {
@@ -306,10 +324,10 @@ const MainApp: React.FC = () => {
         /* لِی‌اوتِ موبایل (اسکرولیِ سیال) */
         <div className="flex-1 flex flex-col min-w-0 relative z-10">
           <NetworkBanner />
-          <main className="flex-1 overflow-y-auto overflow-x-hidden pb-bottom-nav" id="view-viewport">
+          <main className={`flex-1 overflow-y-auto overflow-x-hidden ${isZenActive ? '' : 'pb-bottom-nav'}`} id="view-viewport">
             {renderContent()}
           </main>
-          <BottomNav currentPage={currentPage} setPage={setCurrentPage} />
+          {!isZenActive && <BottomNav currentPage={currentPage} setPage={setCurrentPage} />}
         </div>
       )}
 

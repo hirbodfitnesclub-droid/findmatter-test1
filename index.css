@@ -282,6 +282,9 @@ select:-webkit-autofill:focus {
 /* حریمِ بالا برای هدرهای sticky */
 .pt-safe { padding-top: calc(env(safe-area-inset-top, 0px) + 2rem) !important; }
 
+/* هم‌ترازیِ هدرِ موبایل با استانداردِ اپل */
+.pt-app-safe { padding-top: calc(env(safe-area-inset-top, 0px) + 0.5rem) !important; }
+
 /* حریمِ پایین برای نوارهای عمل/footerِ ثابت */
 .pb-safe { padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 1rem) !important; }
 
