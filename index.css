@@ -31,7 +31,7 @@
   --color-primary-hover: #C1DB3C;
   --text-on-primary: #000000;
   --bg-base: #F4F5F7;
-  --bg-image: linear-gradient(180deg, #F4F5F7, #ECEEF2);
+  --bg-image: url('/bg-light.jpg');
   --bg-app-glass: rgba(244, 245, 247, 0.6);
   --bg-panel-glass: rgba(255, 255, 255, 0.7);
   --bg-card: rgba(255, 255, 255, 0.85);
@@ -70,7 +70,7 @@
 
   /* (ب) توکن‌های مقدارِ کاملِ Hex/rgba (Override) */
   --bg-base: #121212;
-  --bg-image: linear-gradient(180deg, #121212, #0C0C0E);
+  --bg-image: url('/bg-dark.jpg');
   --bg-app-glass: rgba(18, 18, 20, 0.6);
   --bg-panel-glass: rgba(30, 41, 59, 0.4);
   --bg-card: rgba(30, 41, 59, 0.55);

@@ -40,7 +40,7 @@
     <script>
       (function () {
         var t = localStorage.getItem('hexer-theme');
-        var isDark = t === 'dark' || (!t && window.matchMedia('(prefers-color-scheme: dark)').matches);
+        var isDark = t === 'dark';
         if (isDark) {
           document.documentElement.classList.add('dark');
         }
