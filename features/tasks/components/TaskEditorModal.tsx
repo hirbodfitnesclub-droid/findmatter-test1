@@ -421,7 +421,7 @@ export const TaskEditorModal: React.FC<TaskEditorModalProps> = ({
               <div className="pt-6 flex gap-3">
                 <button 
                   onClick={() => setMode('edit')} 
-                  className="flex-1 bg-lime hover:opacity-90 text-[var(--text-on-primary)] py-3 rounded-xl font-bold transition-all flex items-center justify-center gap-2"
+                  className="flex-1 bg-[var(--color-primary)] hover:opacity-90 text-[var(--text-on-primary)] py-3 rounded-xl font-bold transition-all flex items-center justify-center gap-2"
                 >
                   <PencilIcon className="w-4 h-4"/>
                   <span>ویرایش کار</span>
@@ -630,7 +630,7 @@ export const TaskEditorModal: React.FC<TaskEditorModalProps> = ({
         <div className="p-4 sm:p-6 pb-safe border-t border-[var(--border-subtle)] flex gap-3 shrink-0 bg-transparent">
           <button 
             onClick={handleSave} 
-            className="flex-1 bg-lime hover:opacity-90 text-[var(--text-on-primary)] py-3 rounded-xl font-bold transition-all text-sm"
+            className="flex-1 bg-[var(--color-primary)] hover:opacity-90 text-[var(--text-on-primary)] py-3 rounded-xl font-bold transition-all text-sm"
           >
             {isNew ? 'ساختن کار جدید' : 'ذخیره نهایی تغییرات'}
           </button>
