@@ -1728,3 +1728,92 @@ const toggleTheme = () => {
 - **الگوی ریسپانسیوِ داخلیِ ویجت (mobile-first):** ریشهٔ چیدمان `flex flex-col` (استکِ موبایل) + `lg:flex-row` (ستونی دسکتاپ)؛ عرض‌های ثابتِ دسکتاپ (`w-[38%]`, `w-[320px]`) فقط در `lg:` اعمال شوند؛ ارتفاع‌های ثابتِ دسکتاپ در موبایل با `min-h` جایگزین شوند (منطبق با نبایدِ §۲۱ فاز L2: `min-h` + اسکرولِ داخلی به‌جای ارتفاعِ قیچی‌کنندهٔ ثابت).
 - **قانونِ کنتراست (تک‌منبع):** جدولِ توکن §۹ همین سند مرجعِ رنگ است. روی هر سطحِ *روشن*، رنگِ متن ∈ {`--text-main`, `--text-muted`, `--semantic-*`}؛ `--color-primary` و `--border-neon` فقط برای پس‌زمینه/حالتِ دارک. این قانون در ممیزیِ کامپوننت‌های فعال (L3-B6) اعمال می‌شود.
 - **قراردادهای بدون‌تغییر:** الگوی مودالِ موبایل (§۷.۳)، z-index (§۷.۲)، safe-area و فاصله از BottomNav (§۷.۵/۷.۶)، و مکانیزمِ toggle تمِ CSS-محور (نبایدِ §۲۴ فاز L2: بدونِ `hidden`) همگی رعایت می‌شوند.
+
+
+
+---
+---
+---
+
+# فاز L4 — نقشهٔ مهندسیِ رفعِ نواقصِ عملکردی/تعاملی
+
+> مرجع: `docs/PROJECT.md` فاز L4 و `docs/tasks.md` فاز L4. اصولِ §۷ (رنگ، z-index، مودال، safe-area/bottom-nav) و قراردادِ toggle تمِ CSS-محور (§L2 نبایدِ ۲۴) بدون تغییر رعایت می‌شوند.
+
+## L4.۱. منطقِ مسیردهیِ فایل (هیچ فایلِ جدید/حذف؛ فقط ویرایش)
+- `features/chat/composerBridge.ts` — گسترشِ نوعِ draft.
+- `features/chat/ChatView.tsx` — افزودنِ override به `handleSendMessage` + به‌روزرسانیِ مصرفِ draft (فقط این دو نقطه).
+- `features/dashboard/components/AiComposerPanel.tsx` — بازنویسیِ کارکردی.
+- `features/dashboard/components/TodaysPlan.tsx` — ساعت/مرتب‌سازی/سقفِ ارتفاع/خطِ یکسره.
+- `features/dashboard/components/StatsOverview.tsx` — نمودارِ پرشونده.
+- `features/dashboard/components/DashboardHeader.tsx` — بازطراحیِ هدرِ موبایل.
+- `components/ProfileModal.tsx` — سوییچِ تم.
+- `features/dashboard/components/FocusTimer.tsx` + `features/dashboard/Dashboard.tsx` — رفعِ افتادن پشتِ نوار ناوبری.
+- مرجع (read-only): `services/geminiService.ts`، `services/mediaService.ts`، `features/chat/hooks/useMediaRecorder.ts`، `utils/dateUtils.ts`، `index.css`.
+
+## L4.۲. رجیستر باگ‌ها (ریشه‌یابی با فایل/خط)
+| کد | علائم | ریشه (مستخرج از سورس) | راهکار |
+|----|-------|------------------------|--------|
+| L4-B1 | پنلِ AI دکوری؛ هر دکمه فقط به چت می‌برد؛ پیام/عکس/ویس گم می‌شود؛ موبایل خراب | `AiComposerPanel` فقط `setPendingDraft({text})` + navigate؛ دکمه‌های عکس/میکروفون صرفاً navigate. `composerBridge` فقط `{text}`. زیرساختِ ارسال کامل ولی در `ChatView.handleSendMessage` (خطوط ۲۴۸–۴۲۰) محبوس است. | گسترشِ bridge به text+imageFile+audioFile؛ override در `handleSendMessage`؛ پنل واقعی با ری‌یوزِ منطقِ چت |
+| L4-B2 | تسکِ بی‌ساعت، ۱۲:۰۰ نشان می‌دهد؛ ترتیب/اسکرول/خط نادرست | `dateUtils.toGregorian` (خط ۱۶) ساعت را ۱۲:۰۰ می‌گذارد؛ `TaskEditorModal` (خطوط ۱۰۴–۱۱۰، ۱۴۴–۱۴۵) قرارداد «۱۲:۰۰=بی‌ساعت» دارد، ولی `TodaysPlan.formatTime` با `getHours()`ِ محلی فقط ۰۰:۰۰ را خالی می‌کند؛ sort فقط done را ته می‌برد؛ خطِ تایم‌لاین per-item است؛ ارتفاعِ موبایل سقف ندارد | formatTime طبقِ قراردادِ تهران؛ sort جدید؛ سقفِ ~۴ ردیف + اسکرول؛ خطِ یکسره |
+| L4-B3 | نمودارِ StatsOverview روی ~۳۰٪ ثابت می‌ماند و پر نمی‌شود | `dashW` عرض را به [۳۰،۵۰]٪ کلمپ می‌کند (تزئینی)، پیشرفتِ واقعی را بازتاب نمی‌دهد | خط‌چین = درصدِ باقی‌مانده با کفِ حداقلی؛ کپسولِ متن flex-1 با پیشرفت بزرگ‌تر |
+| L4-B4 | هدرِ موبایل شلوغ؛ toggle تم جای نامناسب | هدرِ فعلی: آواتار+رینگ+toggle راست، HEXER چپ | ۲ المان: آواتار+رینگ چپ، سلامِ زمانی راست؛ حذفِ HEXER و toggle |
+| L4-B5 | گزینهٔ «تم دارک» در ProfileModal کار نمی‌کند | دکمهٔ `disabled` (خطوط ۲۹۱–۲۹۵) | سوییچِ فعالِ «تِم هکسر» با مکانیزمِ موجود |
+| L4-B6 | FocusTimer پشتِ نوار ناوبریِ موبایل | `FocusTimer` دارای `mt-auto` (خط ۹۰) + والدِ Dashboard `h-full`؛ در محتوای کوتاه، mt-auto باکس را به تهِ کانتینر می‌چسباند و `pb-bottom-nav`ِ main را خنثی می‌کند | mt-auto فقط در `lg:`؛ تضمینِ فاصلهٔ پایینِ کافی از نوار در موبایل |
+
+## L4.۳. تصمیماتِ فنی
+- **هندآفِ AI:** `DraftMessage = { text; imageFile?; audioFile? }`. `handleSendMessage(textOverride?, mediaOverride?)` با `audioToSend = mediaOverride?.audioFile ?? recordedAudio` و `imageToSend = mediaOverride?.imageFile ?? selectedImageFile`؛ این متغیرها در گارد/messageText/آپلود جایگزینِ stateِ خام می‌شوند. مصرفِ draft در `loadActiveSession` این payload را پاس می‌دهد. بقیهٔ منطقِ ارسال دست‌نخورده.
+- **زمانِ تسک:** `TodaysPlan.formatTime` ساعت/دقیقهٔ تهران را با `Intl.DateTimeFormat('en-US',{timeZone:'Asia/Tehran',hour12:false,...})` بگیرد و ۱۲:۰۰ (و ۰۰:۰۰) را «خالی» بدهد. مرتب‌سازی: زمان‌دارها اول به‌ترتیبِ ساعت صعودی، سپس بی‌زمان‌ها به‌ترتیبِ اولویت (High→Medium→Low)، و انجام‌شده‌ها ته لیست. سقفِ ارتفاع ≈ ۴ ردیف با `overflow-y-auto` در هر دو بریک‌پوینت. خطِ تایم‌لاین: یک المانِ **واحدِ پیوسته** پشتِ دایره‌ها (نه per-item).
+- **StatsOverview (گزینهٔ B):** خط‌چین = درصدِ باقی‌مانده (row1: بر مبنای completedToday/totalTodayTasks؛ row2: highPriorityProjects/projects.length)، با کف/سقفِ منطقی تا هم دیده شود هم کپسولِ متن ≥ ~۴۰٪ بماند؛ کپسولِ متن flex-1 و `whitespace-nowrap`.
+- **هدر (زمان تهران):** صبح ۵–۱۱، ظهر ۱۱–۱۷، عصر ۱۷–۲۰، شب ۲۰–۵. «{بازه} بخیر {firstName}».
+- **تم:** سوییچِ ProfileModal از همان مکانیزمِ سراسری استفاده کند؛ توگلِ سایدبارِ دسکتاپ بماند؛ روی آیکن‌ها هیچ کلاسِ `hidden` نباشد.
+- **FocusTimer:** `mt-auto` → `lg:mt-auto`؛ و تضمینِ اینکه اسکرولِ موبایل به‌اندازهٔ کافی از نوار ناوبری فاصله دارد (اتکا به/ترمیمِ `pb-bottom-nav` و رفعِ تداخلِ `h-full`).
+
+---
+
+---
+
+# §L4 — لنگرگاهِ سیستمیِ فاز «پرداختِ تعامل و تمرکز»
+
+> پروژه از قبل موجود است؛ درختِ فایل را بازترسیم نمی‌کنیم. فقط منطقِ مسیردهی و فایل‌های دقیقِ درگیر را مشخص می‌کنیم.
+
+## L4.0 — قوانینِ مسیردهی (Routing Logic)
+- کامپوننت‌های داشبورد در `features/dashboard/components/**` هستند و از `features/dashboard/Dashboard.tsx` مصرف می‌شوند (دو شاخه: دسکتاپ `#desktop-dashboard` و موبایل `#mobile-dashboard`، تفکیک با `useMediaQuery('(min-width: 1024px)')` = بریک‌پوینتِ `lg`).
+- مودالِ تسک: `features/tasks/components/TaskEditorModal.tsx` (نسخه‌ی فعال؛ از `App.tsx`، `features/tasks/TasksView.tsx`، `features/projects/ProjectsView.tsx` رندر می‌شود). نسخه‌ی `components/TaskEditorModal.tsx` **مرده** است.
+- انتخاب‌گرهای تاریخ/ساعت: `components/PersianDatePicker.tsx` و `components/TimePicker.tsx` (هر دو `<select>`ِ نیتیو).
+- utilityهای فاصله‌گذاری و safe-area در `index.css` تعریف می‌شوند (الگوی موجود: `.pt-safe`, `.pb-safe`, `--safe-area-inset-top`).
+
+## L4.1 — جریانِ داده‌ی «باکس فوکوس» (تنها محورِ داده‌ایِ این فاز)
+مدلِ داده‌ی مرتبط (از `types.ts`، بدون تغییر):
+- `Task.checklist?: ChecklistItem[]` که `ChecklistItem = { id: string; text: string; isCompleted: boolean }`. ستونِ `checklist` (jsonb) در جدولِ `tasks` موجود است و RPCِ `create_task_with_tags` پارامترِ `p_checklist` را اتمیک ذخیره می‌کند.
+- لینکِ تسک↔یادداشت از طریقِ جدولِ `task_note_links` و RPCِ `link_task_note(p_task_id, p_note_id)` که **دوطرفه** است.
+
+APIهای مصرفی (همگی موجود):
+- `const { tasks, addTask, addNote, addNotification } = useData();`
+  - `addTask(payload): Promise<Task>` — `payload = { title, description?, priority, tags?, due_date?, project_id?, checklist? }` (بدونِ id/status/... که سرور می‌سازد). خروجی، `Task`ِ نهایی با `id` است.
+  - `addNote(payload): Promise<Note>` — `payload = { title, content?, tags?, project_id? }`. خروجی، `Note`ِ نهایی با `id` است.
+- `import { linkTaskNote } from '../../../services/linkService';` → `await linkTaskNote(taskId, noteId)`.
+
+**جریانِ خروج از حالتِ تمرکز (autosave):**
+1. انتخابِ تسکِ فعال به‌صورتِ `{ id: string | null; title: string }` نگهداری می‌شود (نه رشته‌ی خام). گزینه‌های سریع مثلِ «تمرکز آزاد» و «مطالعه و یادگیری» `id: null` دارند.
+2. اگر آرایه‌ی «حواس‌پرتی» غیرخالی بود → `await addTask({ title: 'چیزایی که نیاز به بررسی دارن', priority: 'medium', tags: [], checklist: items.map(text => ({ id: newId(), text, isCompleted: false })) })`. (این یک تسکِ **جدیدِ مستقل** است؛ ساب‌تسک‌هایش همان آیتم‌های حواس‌پرتی‌اند.)
+3. اگر متنِ «یادداشتِ این تسک» غیرخالی بود → `const note = await addNote({ title, content: sessionNote, tags: [] })`؛ سپس **فقط اگر** تسکِ فعال `id` واقعی داشت → `await linkTaskNote(selectedTask.id, note.id)` (لینکِ دوطرفه توسطِ RPC انجام می‌شود؛ نیازی به لینکِ معکوسِ دستی نیست).
+4. عنوانِ یادداشت: اگر تسکِ فعال عنوان داشت → `یادداشت تمرکز: ${title}`؛ در غیرِ این‌صورت → `یادداشت جلسه‌ی تمرکز`.
+5. همه‌ی فراخوانی‌ها در `try/catch` و به‌صورتِ ترتیبی (await)؛ در پایان `addNotification(..., 'success')` و ریستِ stateهای محلی و بستنِ overlay. خطا → `addNotification(..., 'error')` و لاگ در کنسول.
+6. اگر هر دو باکس خالی بودند → هیچ چیزی ساخته نشود؛ خروجِ بی‌صدا.
+
+## L4.2 — تحلیلِ ریشه‌ایِ باگ‌های مودالِ تسک (مرجعِ فنی برای تسکِ L4-2)
+- در `TaskEditorModal.tsx` کامپوننتِ `PropertyRow` **داخلِ بدنه‌ی کامپوننت** تعریف شده (حدودِ خط ۲۷۵). چون در هر رندر یک ارجاعِ تابعِ جدید می‌شود، React نوعِ کامپوننت را «متفاوت» می‌بیند و کلِ زیردرختِ Properties (شاملِ `PersianDatePicker` و `TimePicker`) را unmount/remount می‌کند.
+  - نتیجه‌ی ۱ (باگِ «بسته‌شدنِ دراپ‌داونِ تاریخ وسطِ انتخاب»): گرهِ DOMِ `<select>` جایگزین می‌شود و دراپ‌داونِ بازِ سیستم‌عامل بسته می‌شود.
+  - نتیجه‌ی ۲ (باگِ «پرش/گلیچِ تایپ»): remountِ سنگینِ زیردرخت (به‌همراهِ عملیاتِ `Intl` و ساختِ آرایه‌ها در `PersianDatePicker`) در هر کلیدِ فشرده‌شده، تایپ را در موبایل کند/پرشی می‌کند.
+- به‌طورِ مشابه، `SelectWrapper` داخلِ بدنه‌ی `PersianDatePicker` و `TimePicker` تعریف شده و همان مشکلِ remount را برای selectها تشدید می‌کند.
+- **راه‌حلِ اصولی:** هر سه helper (`PropertyRow`, و دو `SelectWrapper`) به **module scope** منتقل شوند. `PropertyRow` هیچ closureای روی stateِ کامپوننت ندارد (فقط props می‌گیرد) پس انتقالش بی‌خطر است.
+- **نکته‌ی مهمِ ضدِ رگرسیون:** effectِ `useEffect(..., [isOpen, task])` که `setFormState(task)` می‌کند صحیح است و **نباید** `formState` به وابستگی‌هایش اضافه شود (وگرنه فرم وسطِ تایپ ریست می‌شود). ارجاعِ `task` (همان `editingTask` در والد) پایدار است و مشکلی ندارد.
+
+## L4.3 — قوانینِ فایل‌ها (چه ساخته/ویرایش می‌شود)
+- **هیچ فایلِ جدیدی ساخته نمی‌شود.** همه‌ی تغییرات ویرایشِ فایل‌های موجود است.
+- فایل‌های درگیر به تفکیکِ تسک:
+  - L4-1: `features/dashboard/components/WeekCalendar.tsx`
+  - L4-2: `features/tasks/components/TaskEditorModal.tsx`, `components/PersianDatePicker.tsx`, `components/TimePicker.tsx`
+  - L4-3: `features/dashboard/components/FocusTimer.tsx`
+  - L4-4: `features/dashboard/components/DashboardHeader.tsx`, `index.css`, `features/dashboard/Dashboard.tsx`
+- هیچ دو تسکی روی فایلِ مشترک نمی‌نویسند → از نظرِ تداخلِ Read/Write ایمن‌اند.

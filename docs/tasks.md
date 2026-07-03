@@ -772,3 +772,187 @@ CONTEXT_FILES: ["features/dashboard/components/TodaysNotes.tsx", "features/dashb
 ۶. هدرِ موبایل هویتِ قدیمی را دارد، توکنیزه و خوانا در هر دو تم، و toggle تم کار می‌کند؛ دسکتاپ بدون تغییر.
 ۷. `npm run build` بدون خطا و بدونِ هشدارِ جدیدِ React عبور می‌کند.
 ۸. هیچ منطق/سرویس/هوک/دیتابیس تغییر نکرده؛ هیچ فایلی ساخته یا Delete نشده؛ هیچ کدی از `index.html` کپی نشده.
+
+---
+---
+---
+
+# فاز L4 — نقشهٔ راهِ رفعِ نواقصِ عملکردی/تعاملی
+
+> مرجع: `docs/ARCHITECTURE.md §L4` و `docs/PROJECT.md` فاز L4. دامنه: فقط فایل‌های ذکرشده. هیچ فایلِ جدید/حذف؛ هیچ .sql. آخرین نسخه با code_execution+read_file (بدون کش) خوانده شود.
+> گروه‌بندیِ اجرا: **گروه ۱ = L4-1 (تنها)** · **گروه ۲ = L4-2 + L4-3** · **گروه ۳ = L4-4 + L4-5**.
+
+### تسک L4-1 (F1): کارکردِ کاملِ باکس هوش مصنوعی
+**عنوان:** ارسالِ واقعیِ متن/عکس/ویس از پنلِ داشبورد با هندآفِ بدونِ گم‌شدن به چت.
+**راهنمای پیاده‌سازی فنی:**
+1. `composerBridge.ts`: `DraftMessage = { text: string; imageFile?: Blob | null; audioFile?: Blob | null }` (توابع بدونِ تغییرِ منطقی).
+2. `ChatView.tsx` (فقط دو نقطه): امضای `handleSendMessage(textOverride?, mediaOverride?: { imageFile?; audioFile? })`؛ تعریفِ `audioToSend`/`imageT بقیهٔ منطق دست‌نخورده. در `loadActiveSession` مصرفِ draft، مدیا را هم به `handleSendMessage` پاس بده.
+3. `AiComposerPanel.tsx`: اینپوتِ فایلِ عکس واقعی (ری‌یوزِ همان compressImage/dataURLtoBlobِ ChatView)، `useMediaRecorder` برای ویس، پیش‌نمایشِ ضمیمه، لودینگِ کوتاه (isSubmitting)، بسته‌بندی به bridge + پاک‌سازیِ state + `setCurrentPage(Page.Chat)`. ریسپانسیوِ موبایل: placeholderِ کوتاه «تعریف کن؛ چه خبر از امروز؟» با `useMediaQuery`، دکمهٔ ارسالِ داخلِ نوار (shrink-0/min-w-0؛ در موبایل آیکونی)، رنگ‌ها توکنی.
+**محدودیت‌های اختصاصی تسک:** فقط ۳ فایل؛ منطقِ ارسال تکرار نشود؛ util/هوکِ موجود بازساخته نشود؛ منطقِ تک‌ضمیمه‌ای؛ به session/proposal/citation/renderِ ChatView دست نزن؛ بدونِ کتابخانهٔ جدید؛ SVG camelCase.
+**معیار پذیرش میکرو:** ارسالِ متن، عکس، و ویس هر سه از پنل کار کند و در چت ادامه یابد؛ پیام/فایل گم نشود؛ در سهمیهٔ تمام‌شده پی‌وال بیاید و پیامِ کاربر باقی بماند؛ در موبایل دکمهٔ ارسال بیرون نزند و placeholder کوتاه باشد.
+**آرایه کانتکست ماشین‌خوان:**
+```json
+CONTEXT_FILES: ["features/dashboard/components/AiComposerPanel.tsx", "features/chat/composerBridge.ts", "features/chat/ChatView.tsx", "services/geminiService.ts", "services/mediaService.ts", "features/chat/hooks/useMediaRecorder.ts", "hooks/useMediaQuery.ts"]
+تسک L4-2 (F2): TodaysPlan — ساعت/مرتب‌سازی/سقفِ ۴ ردیف/خطِ یکسره
+عنوان: اصلاحِ نمایشِ زمان، ترتیب، ارتفاعِ ثابتِ اسکرول‌دار و خطِ تایم‌لاینِ پیوسته. راهنمای پیاده‌سازی فنی:
+
+formatTime: ساعت/دقیقهٔ تهران را با Intl.DateTimeFormat('en-US',{timeZone:'Asia/Tehran',hour:'numeric',minute:'numeric',hour12:false}) محاسبه کن؛ اگر ۱۲:۰۰ (یا ۰۰:۰۰) بود «خالی» (''/—) برگردان.
+مرتب‌سازی: زمان‌دارها اول به‌ترتیبِ ساعتِ صعودی، سپس بی‌زمان‌ها (۱۲:۰۰) به‌ترتیبِ اولویت High→Medium→Low، و doneها ته لیست.
+لیستِ داخلی: ارتفاعِ ثابتِ ≈ ۴ ردیف (مثلاً max-h-[...] متناسب) + overflow-y-auto soft-scroll — در موبایل و دسکتاپ یکسان.
+خطِ تایم‌لاین: به‌جای خطِ per-item، یک خطِ عمودیِ واحدِ پیوسته پشتِ همهٔ دایره‌ها رسم شود. محدودیت‌های اختصاصی تسک: فقط TodaysPlan.tsx؛ منطقِ داده/toggleTaskCompletion تغییر نکند؛ قراردادِ ۱۲:۰۰ همان‌طور که در TaskEditorModal هست رعایت شود (تغییرش نده). معیار پذیرش میکرو: تسکِ بی‌ساعت خالی نشان دهد؛ ترتیبِ زمان→اولویت→done درست باشد؛ بیش از ۴ تسک اسکرول شود و باکس ثابت بماند؛ خط یکسره باشد. آرایه کانتکست ماشین‌خوان:
+JSON
+
+CONTEXT_FILES: ["features/dashboard/components/TodaysPlan.tsx", "utils/dateUtils.ts", "types.ts", "features/tasks/components/TaskEditorModal.tsx"]
+تسک L4-3 (F3): StatsOverview — نمودارِ پرشونده (گزینهٔ B)
+عنوان: بازتابِ پیشرفتِ واقعی؛ خط‌چین با پیشرفت کوچک شود و کپسولِ متن بزرگ. راهنمای پیاده‌سازی فنی: عرضِ کپسولِ خط‌چین = درصدِ باقی‌مانده (row1: بر مبنای completedToday/totalTodayTasks؛ row2: highPriorityProjects/projects.length) با کف/سقفِ منطقی (خط‌چین همیشه دیده شود؛ کپسولِ متنِ flex-1 هیچ‌وقت زیرِ ~۴۰٪ نرود). با افزایشِ پیشرفت، خط‌چین کوچک و کپسولِ متن بزرگ شود. متن whitespace-nowrap. محدودیت‌های اختصاصی تسک: فقط StatsOverview.tsx؛ ساختارِ دو-کپسولی و رنگ‌ها (لایم فقط پس‌زمینه، متنِ کاشیِ لایم text-black) حفظ شود؛ منطقِ useMemo دست نخورد جز محاسبهٔ عرض. معیار پذیرش میکرو: در ۰٪/۵۰٪/۱۰۰٪، solid و خط‌چین متناسب تغییر کنند؛ روی ۳۰٪ ثابت نماند؛ متن تک‌خطی بماند. آرایه کانتکست ماشین‌خوان:
+
+JSON
+
+CONTEXT_FILES: ["features/dashboard/components/StatsOverview.tsx", "contexts/DataContext.tsx", "utils/dateUtils.ts"]
+تسک L4-4 (F4): بازطراحیِ هدرِ موبایل + انتقالِ toggle تم به مودالِ پروفایل
+عنوان: هدرِ دو-المانیِ زمان‌محور + سوییچِ فعالِ «تِم هکسر» در ProfileModal. راهنمای پیاده‌سازی فنی:
+
+DashboardHeader.tsx: فقط دو المان — (چپ / RTL-start) دکمهٔ آواتار + رینگِ پیشرفت (بر مبنای todayProgress، توکنیزه، مثل L3-4)؛ (راست / RTL-end) سلامِ زمان‌محور «{بازه} بخیر {firstName}» با بازه‌های تهران: صبح ۵–۱۱، ظهر ۱۱–۱۷، عصر ۱۷–۲۰، شب ۲۰–۵. وردمارکِ «HEXER» و دکمهٔ toggle تم حذف شوند.
+ProfileModal.tsx: دکمهٔ غیرفعالِ «تم دارک 🌙» (~خط ۲۹۱–۲۹۵) با یک سوییچِ کاربردیِ زیبا با برچسبِ «تِم هکسر» جایگزین شود؛ از مکانیزمِ موجود استفاده کند: document.documentElement.classList.toggle('dark') + localStorage.setItem('hexer-theme', ...) + meta[name=theme-color]. وضعیتِ اولیه از classList.contains('dark') خوانده شود. محدودیت‌های اختصاصی تسک: فقط این دو فایل؛ توگلِ سایدبارِ دسکتاپ دست نخورد؛ روی آیکن‌های تم کلاسِ hidden نباشد؛ رنگِ هارد‌کدِ بنفش/خاکستری ممنوع؛ اینترفیسِ propsِ هدر بدونِ تغییر. معیار پذیرش میکرو: هدر فقط دو المان دارد؛ سلام با ساعت درست تغییر می‌کند؛ سوییچِ تم در پروفایل واقعاً کار می‌کند (تنها راهِ تمِ موبایل)؛ لایت/دارک خوانا. آرایه کانتکست ماشین‌خوان:
+JSON
+
+CONTEXT_FILES: ["features/dashboard/components/DashboardHeader.tsx", "components/ProfileModal.tsx", "contexts/AuthContext.tsx", "contexts/DataContext.tsx", "components/Sidebar.tsx"]
+تسک L4-5 (F5): رفعِ افتادنِ FocusTimer پشتِ نوار ناوبری
+عنوان: تضمینِ فاصلهٔ اسکرولِ کافی در موبایل تا آخرین ویجت پشتِ BottomNav نرود. راهنمای پیاده‌سازی فنی: در FocusTimer.tsx، mt-auto را به lg:mt-auto محدود کن (فقط دسکتاپ). در Dashboard.tsx (شاخهٔ موبایل و/یا والد)، اطمینان حاصل کن اسکرولِ موبایل با نوار ناوبری تداخل ندارد (اتکا به pb-bottom-navِ main و رفعِ تداخلِ h-full؛ در صورتِ نیاز فاصلهٔ پایینِ کافی به کانتینرِ موبایل بده). محدودیت‌های اختصاصی تسک: فقط FocusTimer.tsx و Dashboard.tsx؛ شاخهٔ دسکتاپ و منطق دست نخورد؛ از توکن/کلاس‌های موجودِ safe-area/bottom-nav استفاده شود (کلاس/متغیرِ جدید نساز). معیار پذیرش میکرو: در موبایل با اسکرول تا پایین، کلِ باکسِ تایمر بالای نوار ناوبری دیده شود؛ دسکتاپ بدون تغییر. آرایه کانتکست ماشین‌خوان:
+
+JSON
+
+CONTEXT_FILES: ["features/dashboard/components/FocusTimer.tsx", "features/dashboard/Dashboard.tsx", "index.css", "App.tsx"]
+معیار پذیرش نهاییِ فاز L4
+۱. پنلِ AI متن/عکس/ویس را واقعاً می‌فرستد؛ لودینگ دارد؛ هیچ payloadی گم نمی‌شود؛ اعتبارسنجی/پی‌وال بعد از انتقال کار می‌کند. ۲. زمانِ تسک‌ها درست (۱۲:۰۰=خالی)، ترتیب و اسکرولِ ۴-ردیفه و خطِ یکسره درست است. ۳. نمودارِ StatsOverview پیشرفتِ واقعی را نشان می‌دهد. ۴. هدرِ موبایل دو-المانی و زمان‌محور است و سوییچِ تم در پروفایل کار می‌کند. ۵. FocusTimer پشتِ نوار ناوبری نمی‌افتد. ۶. npm run build بدونِ خطا. ۷. هیچ سرویس/RPC/دیتابیس/فایلِ .sql تغییر نکرده؛ هیچ فایلی ساخته/حذف نشده.
+
+
+---
+---
+---
+
+# فاز L4 — پرداختِ تعامل و تمرکز (Focus & Interaction Polish)
+
+> مرجعِ کامل: `docs/PROJECT.md` §فاز L4 و `docs/ARCHITECTURE.md` §L4.
+> قانونِ طلایی: هیچ کامپوننتی داخلِ بدنه‌ی render تعریف نشود؛ هیچ سرویس/RPC/جدولِ جدید؛ فقط APIهای موجود.
+
+---
+
+### تسک L4-1: فشرده‌سازیِ ارتفاعِ تقویم در موبایل (`WeekCalendar.tsx`)
+
+**عنوان:** پنهان‌کردنِ ردیفِ «روزهای آینده» در موبایل و آزادسازیِ ارتفاعِ ثابت، تا ارتفاعِ کارتِ تقویم در موبایل کمتر شود. دسکتاپ بدونِ تغییر.
+
+**راهنمای پیاده‌سازی فنی:**
+1. در `WeekCalendar.tsx`، بلاکِ «روزهای آینده» (همان `<div className="border-t border-subtle/30 pt-2 mt-2">` که `nextWeekDays` را رندر می‌کند) را فقط در دسکتاپ نمایش بده: کلاسِ کانتینرِ آن بلاک را به `hidden lg:block border-t ...` تغییر بده (بریک‌پوینتِ `lg` تا با تفکیکِ دسکتاپ/موبایلِ `Dashboard.tsx` یکسان بماند).
+2. ارتفاعِ ثابتِ کارت را از حالتِ همیشگی خارج کن تا در موبایل جمع شود: در کلاسِ ریشه‌ی کامپوننت، `min-h-[200px]` را به `lg:min-h-[200px]` تغییر بده (یعنی حداقل‌ارتفاع فقط در دسکتاپ اعمال شود). `flex flex-col justify-between` باقی بماند.
+3. اگر لازم شد فاصله‌ی داخلیِ عمودی در موبایل کمی متعادل شود، فقط با کلاس‌های موجودِ padding/gap تنظیم کن؛ چیدمانِ گریدِ ۷ستونیِ روزها دست‌نخورده بماند.
+
+**محدودیت‌های اختصاصی تسک:**
+- **باید:** فقط کلاس‌های Tailwindِ همین کامپوننت تغییر کند؛ منطقِ `useMemo`ها (`weekDays`, `nextWeekDays`, `headerInfo`) دست‌نخورده بماند (محاسبه‌ی `nextWeekDays` می‌ماند؛ صرفاً در موبایل رندر نمی‌شود).
+- **نباید:** حذفِ کاملِ کدِ `nextWeekDays`؛ تغییرِ رفتارِ دسکتاپ؛ تغییرِ props/امضای کامپوننت؛ افزودنِ `useMediaQuery` (نیازی نیست، با کلاسِ `hidden lg:block` حل می‌شود).
+
+**معیار پذیرش میکرو:**
+- در موبایل (< `lg`): بلاکِ «روزهای آینده» دیده نمی‌شود و کارتِ تقویم کوتاه‌تر از قبل است (بدونِ فضای خالیِ اضافه در پایین).
+- در دسکتاپ (≥ `lg`): تقویم دقیقاً مثلِ قبل با ردیفِ روزهای آینده و `min-h-[200px]` رندر می‌شود.
+- هیچ سرریزِ افقی/عمودی و هیچ warningِ جدیدِ React.
+
+**آرایه کانتکست ماشین‌خوان:**
+```json
+CONTEXT_FILES: ["features/dashboard/components/WeekCalendar.tsx", "features/dashboard/Dashboard.tsx"]
+تسک L4-2: رفعِ باگ‌های مودالِ ساخت/ویرایشِ تسک (TaskEditorModal.tsx + PersianDatePicker.tsx + TimePicker.tsx)
+عنوان: رفعِ ریشه‌ایِ دو باگِ گزارش‌شده: (الف) بسته‌شدنِ دراپ‌داونِ تاریخ وسطِ انتخاب، (ب) پرش/گلیچِ محسوس هنگامِ تایپِ عنوان و توضیحات. علتِ هر دو، remountِ زیردرخت به‌خاطرِ تعریفِ کامپوننت داخلِ بدنه‌ی render است (به ARCHITECTURE.md §L4.2 مراجعه کن).
+
+راهنمای پیاده‌سازی فنی:
+
+در TaskEditorModal.tsx: تعریفِ const PropertyRow: React.FC<...> = (...) => (...) را از داخلِ کامپوننت خارج کن و در module scope (بالای فایل، بعد از importها و کنارِ priorityConfig) بگذار. امضای propsها (icon, label, children, className) و JSXِ آن دقیقاً حفظ شود؛ چون هیچ متغیرِ stateای از کلوژر استفاده نمی‌کند، انتقال بدونِ تغییرِ رفتار است.
+مطمئن شو در بدنه‌ی کامپوننت دیگر تعریفِ کامپوننت (function/arrow که JSX برمی‌گرداند) باقی نمانده باشد. React.useMemo(displayedNotes) و توابعِ handler (که کامپوننت نیستند) باید همان‌جا بمانند.
+در components/PersianDatePicker.tsx: const SelectWrapper: React.FC<...> = ... را به module scope منتقل کن (بیرونِ PersianDatePicker). استفاده‌ی سه‌گانه از <SelectWrapper> بدونِ تغییر بماند.
+در components/TimePicker.tsx: همان کار برای SelectWrapper (انتقال به module scope).
+بازبینیِ ضدِ رگرسیون (بدونِ تغییر): تأیید کن useEffect(..., [isOpen, task]) که setFormState(task) می‌کند دست‌نخورده است و formState به وابستگی‌ها اضافه نشده. همچنین autoFocus روی inputِ عنوان بماند.
+محدودیت‌های اختصاصی تسک:
+
+باید: فقط جابه‌جاییِ محلِ تعریفِ سه helper (بدونِ تغییرِ محتوای آن‌ها)؛ رفتار، ظاهر و کلاس‌ها ۱۰۰٪ یکسان بماند.
+نباید: جایگزینیِ <select>های نیتیو با دراپ‌داونِ سفارشی؛ تغییرِ منطقِ handleSave/handleChange/timezone؛ تغییرِ امضای props؛ دست‌زدن به components/TaskEditorModal.tsxِ legacy؛ افزودنِ useCallback/memoِ غیرضروری.
+معیار پذیرش میکرو:
+
+بازکردنِ دراپ‌داونِ روز/ماه/سال در تاریخِ ددلاین و انتخابِ مقدار، بدونِ بسته‌شدنِ ناگهانیِ لیست انجام می‌شود.
+تایپِ پیوسته در «عنوان» و «توضیحات» بدونِ پرش، بدونِ ازدست‌رفتنِ فوکوس و بدونِ لگِ محسوس (به‌ویژه روی موبایل) است.
+ساختِ تسکِ جدید و ویرایشِ تسکِ موجود (شاملِ تنظیمِ تاریخ+ساعت و لینکِ یادداشت) دقیقاً مثلِ قبل کار می‌کند؛ npm run build بدونِ خطا/هشدارِ جدید.
+آرایه کانتکست ماشین‌خوان:
+
+JSON
+
+CONTEXT_FILES: ["features/tasks/components/TaskEditorModal.tsx", "components/PersianDatePicker.tsx", "components/TimePicker.tsx", "types.ts", "utils/dateUtils.ts"]
+تسک L4-3: بازطراحیِ باکس فوکوس/تایمر با انتخابِ مودالی و ذخیره‌ی خودکار (FocusTimer.tsx)
+عنوان: جایگزینیِ دراپ‌داونِ انتخابِ تسک با یک مودال، و ارتقای حالتِ تمرکز (Zen) به یک تجربه‌ی «خفن» با دو باکسِ ثبتِ حواس‌پرتی و یادداشت، همراه با ذخیره‌ی خودکار هنگامِ خروج. (منطقِ داده در ARCHITECTURE.md §L4.1.)
+
+راهنمای پیاده‌سازی فنی:
+
+stateها و APIها: از useData() مقادیرِ tasks, addTask, addNote, addNotification را بگیر. import { linkTaskNote } from '../../../services/linkService';، import { newId } from '../../../utils/uuid';، و import type { ChecklistItem } from '../../../types';.
+مدلِ انتخابِ تسک: selectedTask را از string | null به { id: string | null; title: string } | null تغییر بده. متنِ نمایشیِ دکمه = selectedTask?.title ?? 'انتخاب تسک'. در Zen mode هم selectedTask?.title نمایش داده شود.
+حذفِ دراپ‌داون، افزودنِ مودالِ انتخابِ تسک: state isDropdownOpen و بلاکِ absolute bottom-full ... و dropdownRef/handleClickOutside را حذف کن (این دراپ‌داونِ absolute در sidebarِ دسکتاپ که overflow-y-auto است کلیپ می‌شود = علتِ باگِ «باز شدن ولی توی همه»). به‌جایش state isTaskPickerOpen بساز. دکمه‌ی «انتخاب تسک» فقط setIsTaskPickerOpen(true) کند.
+مودالِ انتخابِ تسک: یک overlayِ fixed inset-0 z-[70] (بالاتر از Zenِ z-50) با motion.div بساز (الگوی موجودِ همین فایل). داخلش: عنوان، یک لیستِ اسکرول‌دارِ tasks.filter(t => t.status !== 'done') که هر آیتم onClick → setSelectedTask({ id: t.id, title: t.title }); setIsTaskPickerOpen(false). دو گزینه‌ی سریعِ ثابت هم در بالا: «تمرکز آزاد» و «مطالعه و یادگیری» با { id: null, title: ... }. دکمه‌ی بستن/انصراف. RTL و توکنایز‌شده با متغیرهای رنگیِ موجود.
+باکس‌های حالتِ تمرکز (Zen): داخلِ overlayِ Zen، بینِ تایمرِ مرکزی و کنترل‌های پایین، دو باکس اضافه کن (چیدمانِ عمودی، عرضِ max-w-md، ظاهرِ گلاسی/نئونیِ خیلی تمیز، هماهنگ با تمِ تیره‌ی Zen):
+باکسِ ۱ — «حواس‌پرتی»: state distractions: string[] و distractionInput: string. یک input + دکمه‌ی «+»؛ زدنِ «+» یا Enter، متنِ trimشده را (اگر غیرخالی) به distractions اضافه و input را خالی می‌کند. آیتم‌های افزوده‌شده به‌صورتِ لیست/چیپ زیرِ input نمایش داده شوند (با امکانِ حذفِ هر آیتم). زیرِ عنوانِ باکس یک توضیحِ کوتاه: این‌ها بعداً به ساب‌تسک تبدیل می‌شوند.
+باکسِ ۲ — «یادداشت‌های این تسک»: state sessionNote: string؛ یک textarea.
+زیرِ هر دو باکس این متنِ ثابت نوشته شود (بدونِ دکمه‌ی ذخیره): «هر وقت کارت اینجا تموم بشه من برات ذخیرش می‌کنم».
+ذخیره‌ی خودکار هنگامِ خروج: یک تابعِ async handleExitFocus() بساز که هنگامِ زدنِ دکمه‌ی «خروج از تمرکز» (و نه دکمه‌های play/pause/reset) اجرا شود. منطق دقیقاً طبقِ ARCHITECTURE.md §L4.1:
+اگر distractions.length > 0 → await addTask({ title: 'چیزایی که نیاز به بررسی دارن', priority: 'medium', tags: [], checklist: distractions.map(text => ({ id: newId(), text, isCompleted: false } as ChecklistItem)) }).
+اگر sessionNote.trim() → const note = await addNote({ title: selectedTask?.title ? یادداشت تمرکز: ${selectedTask.title} : 'یادداشت جلسه‌ی تمرکز', content: sessionNote.trim(), tags: [] })؛ سپس اگر selectedTask?.id (idِ واقعی) بود → await linkTaskNote(selectedTask.id, note.id).
+در try/catch؛ در موفقیت addNotification('...با موفقیت ذخیره شد', 'success') (پیامِ مناسب بسته به این‌که تسک/یادداشت ساخته شد)، در خطا addNotification('خطا در ذخیره‌ی جلسه‌ی تمرکز', 'error') + console.error.
+در پایانِ موفق: setDistractions([]); setDistractionInput(''); setSessionNote(''); و setIsZenMode(false). اگر هر دو خالی بودند، صرفاً setIsZenMode(false) بدونِ ساختِ چیزی و بدونِ توست.
+مهم: تایمر (isRunning/timeLeft) را می‌توانی هنگامِ خروج pause کنی (setIsRunning(false))، اما ریست‌کردنِ خودِ زمان اختیاری است؛ رفتارِ فعلیِ toggle mode را نشکن.
+ورودِ دوباره: با هر بار زدنِ «ورود» به Zen، اگر جلسه‌ی قبلی ذخیره و ریست شده، باکس‌ها خالی شروع شوند (stateها بعد از خروج ریست شده‌اند؛ نیازی به کارِ اضافه نیست).
+محدودیت‌های اختصاصی تسک:
+
+باید: فقط از addTask/addNote/linkTaskNoteِ موجود استفاده شود؛ idهای چک‌لیست با newId()؛ لینک فقط وقتی selectedTask.id واقعی است؛ همه‌چیز RTL و با متغیرهای رنگیِ موجود؛ انیمیشن‌ها با motion/react.
+نباید: ساختِ سرویس/RPC/جدولِ جدید؛ لینکِ معکوسِ دستی (RPC دوطرفه است)؛ افزودنِ دکمه‌ی «ذخیره»؛ ساختِ تسک/یادداشتِ خالی؛ لینک‌زدن وقتی تسکِ فعال id ندارد؛ تعریفِ کامپوننت داخلِ بدنه‌ی render؛ بلوکه‌کردنِ UI (فراخوانی‌ها async و پشتِ خروج).
+نباید: تغییرِ منطقِ اصلیِ تایمرِ Pomodoro (ثانیه‌های ۲۵/۵، useEffectِ interval، formatTime).
+معیار پذیرش میکرو:
+
+زدنِ «انتخاب تسک» یک مودالِ تمام‌صفحه باز می‌کند (نه دراپ‌داونی که در sidebarِ دسکتاپ کلیپ/خراب می‌شود)؛ انتخابِ تسک، عنوانش را روی دکمه و در Zen نشان می‌دهد.
+در حالتِ تمرکز، دو باکسِ «حواس‌پرتی» و «یادداشت‌های این تسک» با ظاهرِ تمیز و خفن دیده می‌شوند و متنِ «هر وقت کارت اینجا تموم بشه من برات ذخیرش می‌کنم» زیرشان هست؛ دکمه‌ی ذخیره وجود ندارد.
+افزودنِ چند آیتمِ حواس‌پرتی + متنِ یادداشت، سپس «خروج از تمرکز» → یک تسکِ جدید با عنوانِ «چیزایی که نیاز به بررسی دارن» و همان ساب‌تسک‌ها ساخته می‌شود، و یک یادداشت ساخته و (اگر تسکِ فعال idدار بود) دوطرفه به آن لینک می‌شود؛ یک توستِ موفقیت نمایش داده می‌شود.
+خروج با باکس‌های خالی هیچ داده‌ای نمی‌سازد. npm run build بدونِ خطا/هشدارِ جدید. در sidebarِ دسکتاپ هیچ کلیپ/سرریزی رخ نمی‌دهد.
+آرایه کانتکست ماشین‌خوان:
+
+JSON
+
+CONTEXT_FILES: ["features/dashboard/components/FocusTimer.tsx", "contexts/DataContext.tsx", "hooks/useDataManager.ts", "services/linkService.ts", "services/taskService.ts", "services/noteService.ts", "types.ts", "utils/uuid.ts", "components/icons.tsx", "features/notes/components/NoteEditorModal.tsx"]
+تسک L4-4: هم‌ترازیِ فاصله‌ی بالای هدرِ موبایل با استانداردِ اپل (DashboardHeader.tsx + index.css + Dashboard.tsx)
+عنوان: جایگزینیِ مارجینِ بالای ثابتِ هدر با فاصله‌ی safe-areaآگاهِ کوچک (استانداردِ اپل): هدر نه بچسبد به بالا و نه فاصله‌ی زیاد داشته باشد، و روی دستگاه‌های ناچ/Dynamic Island درست زیرِ ناحیه‌ی امن بنشیند.
+
+راهنمای پیاده‌سازی فنی:
+
+در index.css، کنارِ utilityهای موجودِ safe-area، یک کلاسِ جدید اضافه کن:
+CSS
+
+.pt-app-safe { padding-top: calc(env(safe-area-inset-top, 0px) + 0.5rem) !important; }
+(روی دستگاهِ بدونِ ناچ ≈ ۸px؛ روی ناچ/Dynamic Island خودش را با مقدارِ امنِ دستگاه تطبیق می‌دهد.)
+در DashboardHeader.tsx، کلاسِ ریشه‌ی <header> را از pt-8 pb-4 px-5 sticky top-0 ... به pt-app-safe pb-3 px-5 sticky top-0 ... تغییر بده (یعنی pt-8 → pt-app-safe و pb-4 → pb-3). بقیه‌ی کلاس‌ها (backdrop-blur-xl border-b ... bg-[var(--bg-app-glass)] z-20) دست‌نخورده بماند.
+در Dashboard.tsx، در شاخه‌ی موبایل (#mobile-dashboard)، برای این‌که فاصله‌ی بالای هدر دوباره‌کاری نشود، top-paddingِ کانتینر را حذف کن: کلاسِ flex flex-col gap-6 px-5 pt-5 pb-bottom-nav را به flex flex-col gap-6 px-5 pt-0 pb-bottom-nav تغییر بده (فقط pt-5 → pt-0؛ چون هدرِ sticky حالا خودش فاصله‌ی امنِ بالا را مدیریت می‌کند). gap-6, px-5, pb-bottom-nav بماند.
+محدودیت‌های اختصاصی تسک:
+
+باید: فاصله‌ی بالا فقط از env(safe-area-inset-top) + یک مقدارِ کوچکِ ثابت بیاید؛ شاخه‌ی دسکتاپِ Dashboard.tsx (که DashboardHeader را رندر نمی‌کند) دست‌نخورده بماند.
+نباید: استفاده از مقدارِ pxِ هاردکد برای ناچ؛ inline styleِ فاصله‌گذاری؛ تغییرِ منطقِ حلقه‌ی پیشرفت (SVG ring)، greeting یا avatar؛ دست‌زدن به کلاسِ .pt-safeِ موجود (که هدرهای سایرِ صفحات مثلِ Tasks/Notes از آن استفاده می‌کنند — خارج از دامنه‌ی این تسک است تا رگرسیون رخ ندهد).
+معیار پذیرش میکرو:
+
+روی موبایلِ ناچ‌دار، متنِ greeting درست زیرِ ناحیه‌ی امن می‌نشیند (نه زیرِ ناچ، نه چسبیده به بالا) با فاصله‌ی کم و اصولی.
+روی موبایلِ بدونِ ناچ، هدر فاصله‌ی کوچکِ ثابت (~۸px) از بالا دارد و نه فاصله‌ی زیادِ قبلی.
+هیچ فاصله‌ی خالیِ اضافه بینِ بالای ناحیه‌ی اسکرول و نوارِ هدرِ sticky دیده نمی‌شود؛ دسکتاپ کاملاً بدونِ تغییر. npm run build سالم.
+آرایه کانتکست ماشین‌خوان:
+
+JSON
+
+CONTEXT_FILES: ["features/dashboard/components/DashboardHeader.tsx", "index.css", "features/dashboard/Dashboard.tsx"]
+ترتیب اجرای توصیه‌شده‌ی فاز L4 (رعایتِ تداخلِ Read/Write)
+هیچ دو تسکی روی فایلِ مشترک نمی‌نویسند؛ پس از نظرِ فنی موازی‌پذیرند. ترتیبِ زیر صرفاً بر اساسِ ریسک/وابستگیِ منطقی توصیه می‌شود:
+
+L4-1 (WeekCalendar.tsx) — کوچک و ایزوله.
+L4-4 (DashboardHeader.tsx + index.css + Dashboard.tsx) — ایزوله.
+L4-2 (TaskEditorModal.tsx + PersianDatePicker.tsx + TimePicker.tsx) — رفعِ باگِ ریشه‌ای.
+L4-3 (FocusTimer.tsx) — بزرگ‌ترین و پرریسک‌ترین؛ آخر انجام شود.
+نکته: L4-1 و L4-4 هر دو Dashboard.tsx را در CONTEXT_FILES دارند، اما فقط L4-4 روی Dashboard.tsx می‌نویسد (L4-1 فقط آن را برای زمینه می‌خواند). پس این دو را هم‌زمان اجرا نکن؛ L4-1 سپس L4-4 (یا برعکس، به‌صورتِ ترتیبی).
+
+معیار پذیرش نهاییِ فاز L4
+۱. هر ۴ محورِ گزارش‌شده‌ی کاربر رفع شده و در موبایل/دسکتاپ و لایت/دارک بی‌نقص است. ۲. باکس فوکوس: انتخابِ تسک مودالی است، دو باکسِ حواس‌پرتی/یادداشت کار می‌کنند، ذخیره‌ی خودکار هنگامِ خروج تسک+ساب‌تسک و یادداشتِ لینک‌شده می‌سازد، و هیچ دکمه‌ی ذخیره‌ای وجود ندارد. ۳. مودالِ تسک: دراپ‌داونِ تاریخ وسطِ انتخاب بسته نمی‌شود و تایپِ عنوان/توضیحات بدونِ پرش و لگ است. ۴. تقویمِ موبایل کوتاه‌تر است (بدونِ ردیفِ روزهای آینده) و دسکتاپ بدونِ تغییر. ۵. هدرِ موبایل استانداردِ اپل (safe-area + فاصله‌ی کم) دارد؛ دسکتاپ بدونِ تغییر. ۶. هیچ سرویس/RPC/دیتابیس/هوکی تغییر نکرده؛ هیچ فایلِ جدیدی ساخته نشده؛ به فایل‌های legacyِ components/** دست زده نشده. ۷. npm run build بدونِ خطا و بدونِ هشدارِ جدیدِ React عبور می‌کند.
