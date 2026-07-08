@@ -60,7 +60,7 @@ export const ProjectsView: React.FC = () => {
   return (
     <div className="min-h-full text-[var(--text-main)] relative flex flex-col h-full" dir="rtl">
       {/* Header Section */}
-      <header className="sticky top-0 pt-safe z-30 px-6 py-8 backdrop-blur-xl border-b border-[var(--border-subtle)] shrink-0" style={{ background: 'var(--bg-app-glass)' }}>
+      <header className="sticky top-0 pt-safe z-30 px-6 py-8 lg:py-4 lg:px-8 lg:pt-0 bg-[var(--bg-app-glass)] lg:bg-transparent backdrop-blur-xl lg:backdrop-blur-none border-b border-[var(--border-subtle)] lg:border-b-0 shrink-0">
         <div className="max-w-[1600px] mx-auto flex flex-col md:flex-row justify-between items-center gap-6">
           <div className="text-right">
             <h1 className="text-3xl font-black tracking-tight text-[var(--text-main)]">

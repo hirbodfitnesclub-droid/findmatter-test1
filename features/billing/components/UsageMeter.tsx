@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../../services/supabaseClient';
 import { CpuIcon, SparklesIcon, CalendarIcon, ActivityIcon } from '../../../components/icons';
+import { toPersianDigits } from '../../../utils/persianNumbers';
 
 interface UsageStatus {
   plan_code: string;
@@ -79,11 +80,11 @@ export const UsageMeter: React.FC<{ compact?: boolean }> = ({ compact = false })
       <div className="bg-black/5 dark:bg-white/5 rounded-xl border border-[var(--border-subtle)] p-2.5 w-full space-y-1.5 text-right" dir="rtl">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-1.5 text-[10px] font-bold text-[var(--text-main)]">
-            <CpuIcon className="w-3.5 h-3.5 text-primary" />
+            <CpuIcon className="w-3.5 h-3.5 text-primary-text" />
             <span>سهمیه هوش مصنوعی:</span>
           </div>
-          <span className="text-[10px] font-black text-primary font-mono">
-            {remaining} از {limit} باقی‌مانده
+          <span className="text-[10px] font-black text-primary-text font-mono">
+            {toPersianDigits(remaining)} از {toPersianDigits(limit)} باقی‌مانده
           </span>
         </div>
         <div className="w-full bg-black/10 dark:bg-white/10 h-1.5 rounded-full overflow-hidden">
@@ -103,11 +104,11 @@ export const UsageMeter: React.FC<{ compact?: boolean }> = ({ compact = false })
       {/* Title */}
       <div className="flex items-center justify-between text-right">
         <div className="flex items-center gap-2">
-          <CpuIcon className="w-4 h-4 text-primary" />
+          <CpuIcon className="w-4 h-4 text-primary-text" />
           <span className="text-xs font-black text-[var(--text-main)]">سهمیه مصرف هوش مصنوعی</span>
         </div>
         {usage?.plan_code && usage.plan_code !== 'free' ? (
-          <span className="px-2 py-0.5 rounded-md bg-primary/10 border border-primary/20 text-[9px] font-black text-primary flex items-center gap-1">
+          <span className="px-2 py-0.5 rounded-md bg-primary/10 border border-primary/20 text-[9px] font-black text-primary-text flex items-center gap-1">
             <SparklesIcon className="w-2.5 h-2.5" /> {usage.display_name}
           </span>
         ) : (
@@ -120,8 +121,8 @@ export const UsageMeter: React.FC<{ compact?: boolean }> = ({ compact = false })
       {/* Progress Line */}
       <div className="space-y-1.5">
         <div className="flex justify-between items-center text-[10px] font-bold text-[var(--text-muted)] font-mono">
-          <span>{count} درخواست مصرف شده</span>
-          <span>{remaining} عدد باقی‌مانده از {limit}</span>
+          <span>{toPersianDigits(count)} درخواست مصرف شده</span>
+          <span>{toPersianDigits(remaining)} عدد باقی‌مانده از {toPersianDigits(limit)}</span>
         </div>
         <div className="w-full bg-black/10 dark:bg-white/10 h-2 rounded-full overflow-hidden">
           <div 
@@ -159,11 +160,11 @@ export const UsageMeter: React.FC<{ compact?: boolean }> = ({ compact = false })
                     ></div>
                     {/* Hover Tooltip displaying transaction/request count */}
                     <div className="absolute bottom-full mb-1 opacity-0 group-hover:opacity-100 bg-[var(--bg-card)] text-[var(--text-main)] border border-[var(--border-subtle)] px-1.5 py-0.5 rounded text-[8px] font-mono transition-opacity z-20 pointer-events-none whitespace-nowrap">
-                      {day.count} درخواست
+                      {toPersianDigits(day.count)} درخواست
                     </div>
                   </div>
-                  <span className="text-[8px] text-[var(--text-muted)] font-mono mt-0.5 group-hover:text-primary transition-colors">
-                    {label}
+                  <span className="text-[8px] text-[var(--text-muted)] font-mono mt-0.5 group-hover:text-primary-text transition-colors">
+                    {toPersianDigits(label)}
                   </span>
                 </div>
               );
@@ -176,7 +177,7 @@ export const UsageMeter: React.FC<{ compact?: boolean }> = ({ compact = false })
       {usage?.expires_at && (
         <div className="pt-2 border-t border-[var(--border-subtle)] flex items-center justify-between text-[10px] font-bold text-[var(--text-muted)]">
           <div className="flex items-center gap-1">
-            <CalendarIcon className="w-3.5 h-3.5 text-primary" />
+            <CalendarIcon className="w-3.5 h-3.5 text-primary-text" />
             <span>تاریخ پایان اشتراک:</span>
           </div>
           <span className="font-mono text-[var(--text-main)]">

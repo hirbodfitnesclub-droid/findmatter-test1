@@ -93,7 +93,12 @@ export const TasksView: React.FC = () => {
     localStorage.setItem('expanded_projects_state', JSON.stringify(expandedProjects));
   }, [expandedProjects]);
 
-  const handleSaveTask = (taskToSave: Task | Partial<Task>) => {
+  const currentEditingTask = useMemo(() => {
+    if (!editingTask || !('id' in editingTask)) return editingTask;
+    return tasks.find(t => t.id === editingTask.id) || editingTask;
+  }, [editingTask, tasks]);
+
+  const handleSaveTask = async (taskToSave: Task | Partial<Task>, keepOpen?: boolean) => {
     if (!taskToSave.title?.trim()) {
       setEditingTask(null);
       return;
@@ -113,7 +118,9 @@ export const TasksView: React.FC = () => {
         checklist: checklist || [] 
       });
     }
-    setEditingTask(null);
+    if (!keepOpen) {
+      setEditingTask(null);
+    }
   };
 
   const handleAddNewTask = () => {
@@ -149,7 +156,7 @@ export const TasksView: React.FC = () => {
       onClick={() => setViewMode(mode)} 
       className={`flex items-center justify-center gap-2 p-2.5 rounded-lg transition-all w-full ${
         viewMode === mode 
-          ? 'bg-primary/10 border border-[var(--border-neon)] text-[var(--color-primary)] shadow-sm' 
+          ? 'bg-primary/10 border border-[var(--border-neon)] text-[var(--color-primary-text)] shadow-sm' 
           : 'text-[var(--text-muted)] border border-transparent hover:bg-[var(--nav-hover-bg)] hover:text-[var(--text-main)]'
       }`}
     >
@@ -161,8 +168,7 @@ export const TasksView: React.FC = () => {
   return (
     <div className="flex flex-col h-full text-[var(--text-main)]" dir="rtl">
       <header 
-        className="p-4 pt-8 sticky top-0 pt-safe backdrop-blur-md z-10 border-b border-[var(--border-subtle)] space-y-4 shrink-0"
-        style={{ background: 'var(--bg-app-glass)' }}
+        className="p-4 pt-8 lg:pt-0 sticky top-0 pt-safe bg-[var(--bg-app-glass)] lg:bg-transparent backdrop-blur-md lg:backdrop-blur-none z-10 border-b border-[var(--border-subtle)] lg:border-b-0 space-y-4 shrink-0"
       >
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <h1 className="text-2xl font-black text-[var(--text-main)] pr-1">کارها</h1>
@@ -174,7 +180,7 @@ export const TasksView: React.FC = () => {
               onChange={e => setSearchQuery(e.target.value)}
               className="w-full bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-xl py-2 px-10 text-[var(--text-main)] placeholder-[var(--text-muted)] focus:outline-none focus:border-[var(--input-focus-ring)] transition-all font-medium text-xs text-right"
             />
-            <div className="absolute inset-y-0 right-3 flex items-center pointer-events-none text-[var(--text-muted)] group-focus-within:text-[var(--color-primary)] transition-colors">
+            <div className="absolute inset-y-0 right-3 flex items-center pointer-events-none text-[var(--text-muted)] group-focus-within:text-[var(--color-primary-text)] transition-colors">
               <SearchIcon className="w-4 h-4" />
             </div>
             {searchQuery && (
@@ -315,7 +321,7 @@ export const TasksView: React.FC = () => {
             {searchQuery && (
               <button 
                 onClick={() => setSearchQuery('')} 
-                className="text-xs text-[var(--color-primary)] hover:opacity-80 font-bold"
+                className="text-xs text-[var(--color-primary-text)] hover:opacity-80 font-bold"
               >
                 پاک کردن جستجو
               </button>
@@ -335,7 +341,7 @@ export const TasksView: React.FC = () => {
       
       {editingTask && (
         <TaskEditorModal
-          task={editingTask}
+          task={currentEditingTask}
           projects={projects}
           notes={notes}
           isOpen={!!editingTask}

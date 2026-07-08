@@ -5,6 +5,7 @@ import {
   monthlyTrend, 
   weeklyHeatmap 
 } from '../../../utils/habitStats';
+import { toPersianDigits } from '../../../utils/persianNumbers';
 import { 
   FlameIcon, 
   SparklesIcon, 
@@ -36,23 +37,23 @@ export const HabitStatsView: React.FC<HabitStatsViewProps> = ({ completedDates =
       <div className="grid grid-cols-2 gap-4" id="streaks-dashboard">
         {/* Current Streak */}
         <div className="bg-gradient-to-br from-primary/10 to-primary/5 border border-[var(--border-neon)] rounded-2xl p-4 flex flex-col items-center justify-center text-center">
-          <div className="p-3 bg-primary/15 rounded-full text-[var(--color-primary)]">
+          <div className="p-3 bg-primary/15 rounded-full text-[var(--color-primary-text)]">
             <FlameIcon className="w-6 h-6 animate-pulse" />
           </div>
           <span className="text-[11px] text-[var(--text-muted)] font-bold mt-2 font-sans">زنجیره فعلی</span>
-          <span className="text-2xl font-black text-[var(--color-primary)] font-mono mt-1">
-            {currentStreak} روز
+          <span className="text-2xl font-black text-[var(--color-primary-text)] font-mono mt-1">
+            {toPersianDigits(currentStreak)} روز
           </span>
         </div>
 
         {/* Longest Streak */}
         <div className="bg-gradient-to-br from-primary/10 to-primary/5 border border-[var(--border-neon)] rounded-2xl p-4 flex flex-col items-center justify-center text-center">
-          <div className="p-3 bg-primary/15 rounded-full text-[var(--color-primary)]">
+          <div className="p-3 bg-primary/15 rounded-full text-[var(--color-primary-text)]">
             <SparklesIcon className="w-6 h-6" />
           </div>
           <span className="text-[11px] text-[var(--text-muted)] font-bold mt-2 font-sans">طولانی‌ترین زنجیره</span>
-          <span className="text-2xl font-black text-[var(--color-primary)] font-mono mt-1">
-            {longestStreak} روز
+          <span className="text-2xl font-black text-[var(--color-primary-text)] font-mono mt-1">
+            {toPersianDigits(longestStreak)} روز
           </span>
         </div>
       </div>
@@ -60,7 +61,7 @@ export const HabitStatsView: React.FC<HabitStatsViewProps> = ({ completedDates =
       {/* 2. Weekly Heatmap (آخرین ۵ هفته) */}
       <div className="bg-[var(--bg-card)] backdrop-blur-xl border border-[var(--border-subtle)] rounded-2xl p-5 space-y-4" id="heatmap-container">
         <div className="flex items-center gap-2">
-          <ActivityIcon className="w-4 h-4 text-[var(--color-primary)]" />
+          <ActivityIcon className="w-4 h-4 text-[var(--color-primary-text)]" />
           <h4 className="text-sm font-bold text-[var(--text-main)] font-sans">نقشه فعالیت ۳۵ روز اخیر</h4>
         </div>
         
@@ -103,7 +104,7 @@ export const HabitStatsView: React.FC<HabitStatsViewProps> = ({ completedDates =
       {/* 3. Weekday Breakdown (سهم روزهای هفته) */}
       <div className="bg-[var(--bg-card)] backdrop-blur-xl border border-[var(--border-subtle)] rounded-2xl p-5 space-y-4" id="weekday-breakdown">
         <div className="flex items-center gap-2">
-          <ClockIcon className="w-4 h-4 text-[var(--color-primary)]" />
+          <ClockIcon className="w-4 h-4 text-[var(--color-primary-text)]" />
           <h4 className="text-sm font-bold text-[var(--text-main)] font-sans">توزیع انجام در روزهای هفته</h4>
         </div>
 
@@ -120,7 +121,7 @@ export const HabitStatsView: React.FC<HabitStatsViewProps> = ({ completedDates =
                     style={{ width: `${percentage}%` }}
                   />
                 </div>
-                <span className="w-6 text-xs text-[var(--text-muted)] font-mono text-left">{count}</span>
+                <span className="w-6 text-xs text-[var(--text-muted)] font-mono text-left">{toPersianDigits(count)}</span>
               </div>
             );
           })}
@@ -130,7 +131,7 @@ export const HabitStatsView: React.FC<HabitStatsViewProps> = ({ completedDates =
       {/* 4. Monthly Trend (روند ۶ ماه گذشته) */}
       <div className="bg-[var(--bg-card)] backdrop-blur-xl border border-[var(--border-subtle)] rounded-2xl p-5 space-y-5" id="monthly-trend">
         <div className="flex items-center gap-2">
-          <TargetIcon className="w-4 h-4 text-[var(--color-primary)]" />
+          <TargetIcon className="w-4 h-4 text-[var(--color-primary-text)]" />
           <h4 className="text-sm font-bold text-[var(--text-main)] font-sans"> روند ۶ ماه گذشته (جلالی)</h4>
         </div>
 
@@ -145,11 +146,11 @@ export const HabitStatsView: React.FC<HabitStatsViewProps> = ({ completedDates =
                 >
                   {/* Tooltip on hover */}
                   <div className="absolute -top-7 left-1/2 -translate-x-1/2 bg-[var(--bg-card)] border border-[var(--border-subtle)] px-1.5 py-0.5 rounded text-[9px] text-[var(--text-main)] font-mono opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10 pointer-events-none">
-                    {t.count} بار
+                    {toPersianDigits(t.count)} بار
                   </div>
                 </div>
                 <span className="text-[10px] text-[var(--text-muted)] font-bold mt-2 font-sans truncate w-full text-center">{t.month}</span>
-                <span className="text-[10px] text-[var(--color-primary)] font-mono mt-0.5">{t.count}</span>
+                <span className="text-[10px] text-[var(--color-primary-text)] font-mono mt-0.5">{toPersianDigits(t.count)}</span>
               </div>
             );
           })}

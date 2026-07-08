@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useData } from '../../../contexts/DataContext';
+import { toPersianDigits } from '../../../utils/persianNumbers';
+import { isSameTehranDay } from '../../../utils/dateUtils';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   ClockIcon, 
@@ -16,10 +18,13 @@ import type { ChecklistItem } from '../../../types';
 export const FocusTimer: React.FC = () => {
   const { tasks, addTask, addNote, addNotification } = useData();
 
-  const FOCUS_SECONDS = 25 * 60;
-  const BREAK_SECONDS = 5 * 60;
+  const [focusDuration, setFocusDuration] = useState(25); // minutes
+  const [breakDuration, setBreakDuration] = useState(5);   // minutes
 
-  const [timeLeft, setTimeLeft] = useState(FOCUS_SECONDS);
+  const FOCUS_SECONDS = useMemo(() => focusDuration * 60, [focusDuration]);
+  const BREAK_SECONDS = useMemo(() => breakDuration * 60, [breakDuration]);
+
+  const [timeLeft, setTimeLeft] = useState(25 * 60);
   const [isRunning, setIsRunning] = useState(false);
   const [isBreak, setIsBreak] = useState(false);
   const [isZenMode, setIsZenModeState] = useState(false);
@@ -35,9 +40,23 @@ export const FocusTimer: React.FC = () => {
   const [distractionInput, setDistractionInput] = useState('');
   const [sessionNote, setSessionNote] = useState('');
 
+  // Reset timeLeft when duration changes (only if timer is not running)
+  useEffect(() => {
+    if (!isRunning) {
+      setTimeLeft(isBreak ? breakDuration * 60 : focusDuration * 60);
+    }
+  }, [focusDuration, breakDuration, isBreak, isRunning]);
+
   // Filter tasks to only show incomplete ones
   const activeTasks = useMemo(() => {
-    return tasks.filter((t) => t.status !== 'done');
+    const today = new Date();
+    return tasks.filter((t) => {
+      if (t.status === 'done') return false;
+      // Only show tasks due today or completed today
+      if (t.due_date && isSameTehranDay(t.due_date, today)) return true;
+      if (t.completed_at && isSameTehranDay(t.completed_at, today)) return true;
+      return false;
+    });
   }, [tasks]);
 
   // Timer interval with cleanup
@@ -64,7 +83,7 @@ export const FocusTimer: React.FC = () => {
     return () => {
       if (interval) clearInterval(interval);
     };
-  }, [isRunning, isBreak]);
+  }, [isRunning, isBreak, FOCUS_SECONDS, BREAK_SECONDS]);
 
   // Toggle mode manually
   const handleToggleMode = () => {
@@ -81,7 +100,7 @@ export const FocusTimer: React.FC = () => {
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
-    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+    return toPersianDigits(`${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`);
   };
 
   const handleExitFocus = async () => {
@@ -148,11 +167,11 @@ export const FocusTimer: React.FC = () => {
 
   return (
     <div 
-      className="bg-[#16161a] border border-white/10 text-white rounded-[var(--radius-lg)] p-4 relative overflow-hidden min-h-[160px] flex flex-col justify-between dark:border-[var(--border-neon)] dark:shadow-[0_0_20px_rgb(var(--color-primary-rgb)/0.15)] lg:mt-auto animate-fade-in"
+      className="bg-[var(--ink-bg)] border border-white/10 text-white rounded-[var(--radius-lg)] p-4 relative overflow-hidden min-h-[160px] flex flex-col justify-between dark:border-[var(--border-neon)] dark:shadow-[0_0_20px_rgb(var(--color-primary-rgb)/0.15)] lg:mt-auto animate-fade-in"
       id="focus-timer-widget"
     >
       {/* Abstract background halo */}
-      <div className="absolute inset-0 bg-gradient-to-tr from-[#16161a] via-black/20 to-white/5 opacity-40 pointer-events-none"></div>
+      <div className="absolute inset-0 bg-gradient-to-tr from-[var(--ink-bg)] via-black/20 to-white/5 opacity-40 pointer-events-none"></div>
       
       {/* Blur Glow Effect */}
       <div className="absolute top-1/2 left-1/3 -translate-x-1/2 -translate-y-1/2 w-32 h-32 bg-white/5 dark:bg-white/5 rounded-full blur-3xl pointer-events-none"></div>
@@ -160,14 +179,14 @@ export const FocusTimer: React.FC = () => {
       {/* Top Row: Title & Enter Zen Mode */}
       <div className="flex items-center justify-between z-10 shrink-0">
         <div className="flex items-center gap-1.5 text-white/50 text-[11px] font-bold">
-          <ClockIcon className="w-3.5 h-3.5 text-primary" />
+          <ClockIcon className="w-3.5 h-3.5 text-primary-text" />
           <span className="tracking-wider text-[11px] font-black text-white">
             {isBreak ? 'استراحت کوتاه' : 'تمرکز عمیق'}
           </span>
         </div>
         <button
           onClick={() => setIsZenMode(true)}
-          className="bg-lime text-black hover:bg-[var(--color-primary-hover)] text-[11px] font-extrabold px-3 py-1 rounded-full active:scale-95 transition-transform"
+          className="bg-brand text-black hover:bg-[var(--color-primary-hover)] text-[11px] font-extrabold px-3 py-1 rounded-full active:scale-95 transition-transform"
         >
           ورود
         </button>
@@ -195,7 +214,7 @@ export const FocusTimer: React.FC = () => {
           {/* Play/Pause Button */}
           <button
             onClick={() => setIsRunning(!isRunning)}
-            className="w-8 h-8 rounded-full bg-lime text-black flex items-center justify-center transition hover:scale-105 active:scale-95 shadow-[0_0_15px_rgb(var(--color-primary-rgb)/0.3)]"
+            className="w-8 h-8 rounded-full bg-brand text-black flex items-center justify-center transition hover:scale-105 active:scale-95 shadow-[0_0_15px_rgb(var(--color-primary-rgb)/0.3)]"
           >
             {isRunning ? (
               <PauseIcon className="w-3.5 h-3.5 fill-current text-black" />
@@ -203,6 +222,56 @@ export const FocusTimer: React.FC = () => {
               <PlayIcon className="w-3.5 h-3.5 fill-current text-black ml-0.5" />
             )}
           </button>
+        </div>
+      </div>
+
+      {/* Duration Selector */}
+      <div className="flex items-center justify-between gap-1 z-10 mb-2 bg-white/5 border border-white/5 rounded-xl p-1.5 text-[11px]" dir="rtl">
+        <span className="text-white/40 font-bold pr-1">مدت {isBreak ? 'استراحت' : 'تمرکز'}:</span>
+        <div className="flex items-center gap-1">
+          {(isBreak ? [3, 5, 10, 15] : [15, 25, 45, 60]).map((mins) => (
+            <button
+              key={mins}
+              disabled={isRunning}
+              onClick={() => {
+                if (isBreak) {
+                  setBreakDuration(mins);
+                } else {
+                  setFocusDuration(mins);
+                }
+              }}
+              className={`px-1.5 py-0.5 rounded transition font-mono font-bold text-[10px] ${
+                (isBreak ? breakDuration : focusDuration) === mins
+                  ? 'bg-brand text-black font-extrabold'
+                  : 'bg-white/5 hover:bg-white/10 text-white/70 disabled:opacity-50'
+              } cursor-pointer`}
+            >
+              {toPersianDigits(mins)}
+            </button>
+          ))}
+        </div>
+        
+        {/* Custom Input */}
+        <div className="flex items-center gap-1">
+          <input
+            type="number"
+            min={1}
+            max={isBreak ? 30 : 120}
+            value={isBreak ? breakDuration : focusDuration}
+            disabled={isRunning}
+            onChange={(e) => {
+              const val = parseInt(e.target.value) || 1;
+              const maxVal = isBreak ? 30 : 120;
+              const sanitized = Math.min(maxVal, Math.max(1, val));
+              if (isBreak) {
+                setBreakDuration(sanitized);
+              } else {
+                setFocusDuration(sanitized);
+              }
+            }}
+            className="w-10 bg-black/30 border border-white/10 rounded px-1 py-0.5 text-center text-[10px] font-mono font-bold text-white focus:outline-none focus:border-brand/50 disabled:opacity-50"
+          />
+          <span className="text-white/30 text-[9px]">دقیقه</span>
         </div>
       </div>
 
@@ -237,7 +306,7 @@ export const FocusTimer: React.FC = () => {
             >
               {/* Header */}
               <div className="flex items-center justify-between border-b border-white/5 pb-3 mb-4">
-                <span className="font-black text-sm text-primary">انتخاب تسک</span>
+                <span className="font-black text-sm text-primary-text">انتخاب تسک</span>
                 <button
                   onClick={() => setIsTaskPickerOpen(false)}
                   className="w-6 h-6 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center text-white/50 hover:text-white transition cursor-pointer"
@@ -312,7 +381,7 @@ export const FocusTimer: React.FC = () => {
             {/* Top Bar */}
             <div className="w-full max-w-md flex items-center justify-between mt-4">
               <div className="flex items-center gap-2 text-white/60">
-                <SparklesIcon className="w-5 h-5 text-primary animate-pulse" />
+                <SparklesIcon className="w-5 h-5 text-primary-text animate-pulse" />
                 <span className="font-bold tracking-wide text-sm">
                   {isBreak ? 'حالت استراحت کوتاه' : 'حالت تمرکز عمیق'}
                 </span>
@@ -354,7 +423,7 @@ export const FocusTimer: React.FC = () => {
 
               {/* Breathing cycle text */}
               {isRunning && (
-                <span className="text-primary/80 text-xs font-medium tracking-wide animate-pulse">
+                <span className="text-primary-text/80 text-xs font-medium tracking-wide animate-pulse">
                   {isBreak ? 'دم و بازدم آرام...' : 'به درون خود نگاه کن و متمرکز بمان...'}
                 </span>
               )}
@@ -364,7 +433,7 @@ export const FocusTimer: React.FC = () => {
             <div className="w-full max-w-md flex flex-col gap-4 my-6 bg-white/5 border border-white/10 rounded-2xl p-4 backdrop-blur-md text-right">
               {/* Box 1: Distractions */}
               <div className="flex flex-col gap-2">
-                <label className="text-xs font-black text-primary flex items-center gap-1.5 justify-start">
+                <label className="text-xs font-black text-primary-text flex items-center gap-1.5 justify-start">
                   <span>حواس‌پرتی‌ها</span>
                   <span className="text-[10px] text-white/40 font-normal">(به کار عمیق اضافه می‌شوند)</span>
                 </label>
@@ -422,7 +491,7 @@ export const FocusTimer: React.FC = () => {
 
               {/* Box 2: Session Notes */}
               <div className="flex flex-col gap-2">
-                <label className="text-xs font-black text-primary text-right">یادداشت‌های این تسک</label>
+                <label className="text-xs font-black text-primary-text text-right">یادداشت‌های این تسک</label>
                 <textarea
                   value={sessionNote}
                   onChange={(e) => setSessionNote(e.target.value)}
@@ -433,7 +502,7 @@ export const FocusTimer: React.FC = () => {
               </div>
 
               {/* Fixed Bottom Message */}
-              <div className="text-center text-[10px] text-primary/70 font-black mt-1 animate-pulse">
+              <div className="text-center text-[10px] text-primary-text/70 font-black mt-1 animate-pulse">
                 هر وقت کارت اینجا تموم بشه من برات ذخیرش می‌کنم
               </div>
             </div>
@@ -453,7 +522,7 @@ export const FocusTimer: React.FC = () => {
 
               <button
                 onClick={() => setIsRunning(!isRunning)}
-                className="w-16 h-16 rounded-full bg-lime text-black flex items-center justify-center transition hover:scale-105 active:scale-95 shadow-[0_0_25px_rgb(var(--color-primary-rgb)/0.4)] cursor-pointer"
+                className="w-16 h-16 rounded-full bg-brand text-black flex items-center justify-center transition hover:scale-105 active:scale-95 shadow-[0_0_25px_rgb(var(--color-primary-rgb)/0.4)] cursor-pointer"
               >
                 {isRunning ? (
                   <PauseIcon className="w-7 h-7 fill-current text-black" />

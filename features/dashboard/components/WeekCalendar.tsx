@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
 import { toJalaali, persianMonths, isSameTehranDay } from '../../../utils/dateUtils';
+import { toPersianDigits } from '../../../utils/persianNumbers';
 
 interface WeekCalendarProps {
   selectedDate: Date;
@@ -60,7 +61,7 @@ export const WeekCalendar: React.FC<WeekCalendarProps> = ({ selectedDate, onDate
 
   const headerInfo = useMemo(() => {
     const j = toJalaali(selectedDate);
-    return `${persianMonths[j.jm - 1]} ${j.jy}`;
+    return `${persianMonths[j.jm - 1]} ${toPersianDigits(j.jy)}`;
   }, [selectedDate]);
 
   const nextWeekDays = useMemo(() => {

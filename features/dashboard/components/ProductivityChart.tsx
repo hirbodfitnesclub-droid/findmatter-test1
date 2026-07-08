@@ -27,9 +27,11 @@ export const ProductivityChart: React.FC = () => {
   // 2. Compute progress percentage for each day of the current week (completed / total due)
   const weekData = useMemo(() => {
     return weekDays.map((day) => {
-      // Find tasks due on this day
+      // Find tasks due on this day or completed on this day (retroactive)
       const dayTasks = tasks.filter((t) => {
-        return t.due_date && isSameTehranDay(t.due_date, day);
+        if (t.due_date && isSameTehranDay(t.due_date, day)) return true;
+        if (t.completed_at && isSameTehranDay(t.completed_at, day)) return true;
+        return false;
       });
 
       const completedCount = dayTasks.filter((t) => t.status === 'done').length;
@@ -46,7 +48,11 @@ export const ProductivityChart: React.FC = () => {
   // 3. Compute Weekly Productivity Rate
   const weeklyRate = useMemo(() => {
     const currentWeekTasks = tasks.filter((t) => {
-      return t.due_date && weekDays.some((wd) => isSameTehranDay(t.due_date!, wd));
+      return weekDays.some((wd) => {
+        if (t.due_date && isSameTehranDay(t.due_date, wd)) return true;
+        if (t.completed_at && isSameTehranDay(t.completed_at, wd)) return true;
+        return false;
+      });
     });
     const currentWeekCompleted = currentWeekTasks.filter((t) => t.status === 'done');
     return currentWeekTasks.length > 0
@@ -58,9 +64,15 @@ export const ProductivityChart: React.FC = () => {
   const monthlyRate = useMemo(() => {
     const todayJ = toJalaali(new Date());
     const currentMonthTasks = tasks.filter((t) => {
-      if (!t.due_date) return false;
-      const j = toJalaali(new Date(t.due_date));
-      return j.jy === todayJ.jy && j.jm === todayJ.jm;
+      if (t.due_date) {
+        const j = toJalaali(new Date(t.due_date));
+        if (j.jy === todayJ.jy && j.jm === todayJ.jm) return true;
+      }
+      if (t.completed_at) {
+        const j = toJalaali(new Date(t.completed_at));
+        if (j.jy === todayJ.jy && j.jm === todayJ.jm) return true;
+      }
+      return false;
     });
     const currentMonthCompleted = currentMonthTasks.filter((t) => t.status === 'done');
     return currentMonthTasks.length > 0
@@ -132,7 +144,7 @@ export const ProductivityChart: React.FC = () => {
               <span className="text-[9px] text-white/50 font-bold mt-0.5">هفته جاری</span>
             </div>
           </div>
-          <span className="text-[10px] font-black bg-lime px-2.5 py-0.5 rounded-full text-black">
+          <span className="text-[10px] font-black bg-brand px-2.5 py-0.5 rounded-full text-black">
             {toPersianNum(weeklyRate)}٪
           </span>
         </div>
@@ -143,15 +155,15 @@ export const ProductivityChart: React.FC = () => {
         {/* Month Row */}
         <div className="flex items-center justify-between flex-1 lg:flex-none w-full">
           <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-full bg-primary/15 flex items-center justify-center text-primary shrink-0">
-              <TrendingUpIcon className="w-4 h-4 text-primary" />
+            <div className="w-7 h-7 rounded-full bg-primary/15 flex items-center justify-center text-primary-text shrink-0">
+              <TrendingUpIcon className="w-4 h-4 text-primary-text" />
             </div>
             <div className="flex flex-col text-right leading-tight">
               <span className="text-[11px] text-white/90 font-black">بهره‌وری</span>
               <span className="text-[9px] text-white/50 font-bold mt-0.5">ماه جاری</span>
             </div>
           </div>
-          <span className="text-[10px] font-black bg-lime px-2.5 py-0.5 rounded-full text-black shadow-[0_2px_8px_rgb(var(--color-primary-rgb)/0.3)]">
+          <span className="text-[10px] font-black bg-brand px-2.5 py-0.5 rounded-full text-black shadow-[0_2px_8px_rgb(var(--color-primary-rgb)/0.3)]">
             {toPersianNum(monthlyRate)}٪
           </span>
         </div>
@@ -162,8 +174,8 @@ export const ProductivityChart: React.FC = () => {
         <svg viewBox="0 0 280 120" preserveAspectRatio="none" className="w-full h-full overflow-visible">
           <defs>
             <linearGradient id="waveGrad" x1="0%" y1="0%" x2="100%" y2="0%">
-              <stop offset="0%" stopColor="#38bdf8" />
-              <stop offset="100%" stopColor="#D8F066" />
+              <stop offset="0%" stopColor="rgb(var(--color-primary-hover-rgb))" />
+              <stop offset="100%" stopColor="rgb(var(--color-primary-rgb))" />
             </linearGradient>
           </defs>
 
@@ -176,18 +188,20 @@ export const ProductivityChart: React.FC = () => {
             if (d.isToday) {
               return (
                 <g key={index}>
-                  {/* Outer dashed indicator for today's target container */}
-                  <rect
-                    x={x}
-                    y={5}
-                    width={colWidth}
-                    height={maxBarHeight}
-                    rx={8}
-                    fill="none"
-                    stroke="rgba(255,255,255,0.6)"
-                    strokeWidth="1.5"
-                    strokeDasharray="4 3"
-                  />
+                  {/* Dashed outline for the remaining (unfilled) portion above today's progress */}
+                  {barHeight < maxBarHeight && (
+                    <rect
+                      x={x}
+                      y={5}
+                      width={colWidth}
+                      height={maxBarHeight - barHeight}
+                      rx={Math.min(8, (maxBarHeight - barHeight) / 2)}
+                      fill="none"
+                      stroke="rgba(255,255,255,0.6)"
+                      strokeWidth="1.5"
+                      strokeDasharray="4 3"
+                    />
+                  )}
                   {/* Solid inner actual progress for today */}
                   {barHeight > 0 && (
                     <rect
@@ -195,7 +209,7 @@ export const ProductivityChart: React.FC = () => {
                       y={y}
                       width={colWidth}
                       height={barHeight}
-                      rx={8}
+                      rx={Math.min(8, barHeight / 2)}
                       fill="rgba(255,255,255,0.9)"
                     />
                   )}
@@ -212,7 +226,7 @@ export const ProductivityChart: React.FC = () => {
                     y={y}
                     width={colWidth}
                     height={barHeight}
-                    rx={8}
+                    rx={Math.min(8, barHeight / 2)}
                     fill="rgba(255,255,255,0.9)"
                   />
                 )}

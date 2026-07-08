@@ -2,6 +2,7 @@ import React, { useMemo } from 'react';
 import { useData } from '../../../contexts/DataContext';
 import { getTehranDateString, compareTehranDates, isSameTehranDay } from '../../../utils/dateUtils';
 import { Priority } from '../../../types';
+import { toPersianDigits } from '../../../utils/persianNumbers';
 
 interface StatsOverviewProps {
   onOpenWeeklyReport: () => void;
@@ -90,7 +91,7 @@ export const StatsOverview: React.FC<StatsOverviewProps> = ({ onOpenWeeklyReport
             />
           </svg>
           <div className="absolute inset-0 flex items-center justify-center text-[13px] font-black mt-0.5 text-white dark:text-[var(--text-main)]">
-            {progress}%
+            {toPersianDigits(progress)}%
           </div>
         </div>
 
@@ -103,7 +104,7 @@ export const StatsOverview: React.FC<StatsOverviewProps> = ({ onOpenWeeklyReport
       </div>
 
       {/* Box 2: Today at a Glance */}
-      <div className="tile-lime flex-1 min-h-[115px] rounded-[var(--radius-lg)] p-3 relative flex flex-col justify-between hover:-translate-y-[2px] transition-all duration-200 shadow-sm text-black">
+      <div className="tile-brand flex-1 min-h-[115px] rounded-[var(--radius-lg)] p-3 relative flex flex-col justify-between hover:-translate-y-[2px] transition-all duration-200 shadow-sm text-black">
         <div className="text-right pr-1">
           <h3 className="font-black text-[13px] text-black">کارهای امروز در یک نگاه</h3>
         </div>
@@ -111,8 +112,8 @@ export const StatsOverview: React.FC<StatsOverviewProps> = ({ onOpenWeeklyReport
         <div className="flex flex-col gap-1.5 mt-1">
           {/* Row 1 */}
           <div className="flex items-center gap-1.5 w-full">
-            <div className="bg-[#16161A] text-white rounded-full h-[24px] flex-1 flex items-center px-3 justify-start text-[11px] font-bold whitespace-nowrap min-w-0 overflow-hidden">
-              تعداد: {stats.completedToday}/{totalTodayTasks}
+            <div className="bg-[var(--ink-bg)] text-white rounded-full h-[24px] flex-1 flex items-center px-3 justify-start text-[11px] font-bold whitespace-nowrap min-w-0 overflow-hidden">
+              تعداد: {toPersianDigits(stats.completedToday)}/{toPersianDigits(totalTodayTasks)}
             </div>
             <div 
               className="border-[1.5px] border-dashed border-black/40 rounded-full h-[24px] shrink-0" 
@@ -122,8 +123,8 @@ export const StatsOverview: React.FC<StatsOverviewProps> = ({ onOpenWeeklyReport
           
           {/* Row 2 */}
           <div className="flex items-center gap-1.5 w-full">
-            <div className="bg-[#16161A] text-white rounded-full h-[24px] flex-1 flex items-center px-3 justify-start text-[11px] font-bold whitespace-nowrap min-w-0 overflow-hidden">
-              مهم: {stats.highPriorityProjects}/{projects.length}
+            <div className="bg-[var(--ink-bg)] text-white rounded-full h-[24px] flex-1 flex items-center px-3 justify-start text-[11px] font-bold whitespace-nowrap min-w-0 overflow-hidden">
+              مهم: {toPersianDigits(stats.highPriorityProjects)}/{toPersianDigits(projects.length)}
             </div>
             <div 
               className="border-[1.5px] border-dashed border-black/40 rounded-full h-[24px] shrink-0" 
@@ -134,10 +135,10 @@ export const StatsOverview: React.FC<StatsOverviewProps> = ({ onOpenWeeklyReport
           {/* Row 3 */}
           <div 
             onClick={onOpenOverdueModal}
-            className="bg-[#16161A] hover:bg-[#202024] active:scale-[0.98] transition-all rounded-full h-[24px] w-full flex items-center justify-between p-[2px] cursor-pointer group"
+            className="bg-[var(--ink-bg)] hover:bg-[#202024] active:scale-[0.98] transition-all rounded-full h-[24px] w-full flex items-center justify-between p-[2px] cursor-pointer group"
           >
             <div className="text-white text-[11px] font-bold pr-2.5">
-              عقب افتاده: {stats.overdue}
+              عقب افتاده: {toPersianDigits(stats.overdue)}
             </div>
             <div 
               className="text-white/80 group-hover:text-white group-hover:scale-110 transition p-1 ml-1" 

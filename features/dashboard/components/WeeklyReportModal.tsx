@@ -11,6 +11,7 @@ import {
   formatPersianDate, 
   compareTehranDates 
 } from '../../../utils/dateUtils';
+import { toPersianDigits } from '../../../utils/persianNumbers';
 
 interface WeeklyReportModalProps {
   isOpen: boolean;
@@ -137,7 +138,7 @@ export const WeeklyReportModal: React.FC<WeeklyReportModalProps> = ({ isOpen, on
           <div className="p-6 border-b border-[var(--border-subtle)] flex items-center justify-between flex-shrink-0">
             <div>
               <h3 className="text-xl font-bold text-[var(--text-main)] flex items-center gap-2">
-                <ClipboardListIcon className="w-5 h-5 text-[var(--text-main)] dark:text-[var(--color-primary)]" />
+                <ClipboardListIcon className="w-5 h-5 text-[var(--text-main)] dark:text-[var(--color-primary-text)]" />
                 گزارش عملکرد هفتگی
               </h3>
               <p className="text-xs text-[var(--text-muted)] mt-1">
@@ -182,7 +183,7 @@ export const WeeklyReportModal: React.FC<WeeklyReportModalProps> = ({ isOpen, on
                 </svg>
                 {/* Embedded percentage details */}
                 <div className="absolute flex flex-col items-center">
-                  <span className="text-xl font-black text-[var(--text-main)] font-mono">{completionPercentage}%</span>
+                  <span className="text-xl font-black text-[var(--text-main)] font-mono">{toPersianDigits(completionPercentage)}%</span>
                   <span className="text-[9px] text-[var(--text-muted)]">انجام شده</span>
                 </div>
               </div>
@@ -191,7 +192,7 @@ export const WeeklyReportModal: React.FC<WeeklyReportModalProps> = ({ isOpen, on
               <div className="text-right space-y-1 sm:space-y-2">
                 <span className="text-[10px] sm:text-xs text-[var(--text-muted)] block font-semibold">امتیاز بهره‌وری</span>
                 <div className="flex items-baseline justify-start gap-1">
-                  <span className="text-4xl sm:text-5xl font-black text-[var(--text-main)] font-mono">{stats.healthScore}</span>
+                  <span className="text-4xl sm:text-5xl font-black text-[var(--text-main)] font-mono">{toPersianDigits(stats.healthScore)}</span>
                   <span className="text-[10px] sm:text-sm text-[var(--text-muted)] font-medium select-none">/ ۱۰۰</span>
                 </div>
                 <div className={`px-2 py-0.5 sm:px-3 sm:py-1 rounded-full text-[10px] sm:text-xs font-bold border inline-block ${healthRating.bg} ${healthRating.color}`}>
@@ -203,15 +204,15 @@ export const WeeklyReportModal: React.FC<WeeklyReportModalProps> = ({ isOpen, on
             {/* General Counts Stats */}
             <div className="grid grid-cols-3 gap-3">
               <div className="bg-[var(--bg-card)] border border-[var(--border-subtle)] shadow-[var(--shadow-card)] rounded-xl p-3 text-center">
-                <span className="text-2xl font-black text-[var(--text-main)] block font-mono">{doneThisWeek.length}</span>
+                <span className="text-2xl font-black text-[var(--text-main)] block font-mono">{toPersianDigits(doneThisWeek.length)}</span>
                 <span className="text-[10px] text-[var(--text-muted)] block mt-1">کل کارهای انجام‌شده</span>
               </div>
               <div className="bg-[var(--bg-card)] border border-[var(--border-subtle)] shadow-[var(--shadow-card)] rounded-xl p-3 text-center">
-                <span className="text-2xl font-black text-[var(--semantic-success)] block font-mono">{stats.onTimeCount}</span>
+                <span className="text-2xl font-black text-[var(--semantic-success)] block font-mono">{toPersianDigits(stats.onTimeCount)}</span>
                 <span className="text-[10px] text-[var(--text-muted)] block mt-1">به‌موقع</span>
               </div>
               <div className="bg-[var(--bg-card)] border border-[var(--border-subtle)] shadow-[var(--shadow-card)] rounded-xl p-3 text-center">
-                <span className="text-2xl font-black text-[var(--text-main)] block font-mono">{stats.delayedDoneCount}</span>
+                <span className="text-2xl font-black text-[var(--text-main)] block font-mono">{toPersianDigits(stats.delayedDoneCount)}</span>
                 <span className="text-[10px] text-[var(--text-muted)] block mt-1">با تاخیر</span>
               </div>
             </div>
@@ -226,7 +227,7 @@ export const WeeklyReportModal: React.FC<WeeklyReportModalProps> = ({ isOpen, on
                     : 'text-[var(--text-muted)] hover:text-[var(--text-main)]'
                 }`}
               >
-                انجام شده‌ها ({doneThisWeek.length})
+                انجام شده‌ها ({toPersianDigits(doneThisWeek.length)})
               </button>
               <button
                 onClick={() => setActiveTab('todo')}
@@ -236,7 +237,7 @@ export const WeeklyReportModal: React.FC<WeeklyReportModalProps> = ({ isOpen, on
                     : 'text-[var(--text-muted)] hover:text-[var(--text-main)]'
                 }`}
               >
-                انجام نشده‌ها ({todoThisWeek.length})
+                انجام نشده‌ها ({toPersianDigits(todoThisWeek.length)})
               </button>
             </div>
 

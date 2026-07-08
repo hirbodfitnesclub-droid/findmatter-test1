@@ -18,14 +18,14 @@ interface TaskEditorModalProps {
   projects: Project[];
   notes: Note[];
   onClose: () => void;
-  onSave: (task: Task | Partial<Task>) => Promise<Task> | any;
+  onSave: (task: Task | Partial<Task>, keepOpen?: boolean) => Promise<Task | void> | void;
   onDelete: (id: string) => void;
 }
 
 const priorityConfig = {
   [Priority.High]: { label: 'زیاد', color: 'red', text: 'text-error', bg: 'bg-error/10', badge: 'bg-error/10 text-error border-error/30' },
-  [Priority.Medium]: { label: 'متوسط', color: 'yellow', text: 'text-primary', bg: 'bg-primary/10', badge: 'bg-primary/10 text-primary border-primary/30' },
-  [Priority.Low]: { label: 'کم', color: 'sky', text: 'text-primary', bg: 'bg-primary/10', badge: 'bg-primary/10 text-primary border-primary/30' },
+  [Priority.Medium]: { label: 'متوسط', color: 'yellow', text: 'text-primary-text', bg: 'bg-primary/10', badge: 'bg-primary/10 text-primary-text border-primary/30' },
+  [Priority.Low]: { label: 'کم', color: 'sky', text: 'text-primary-text', bg: 'bg-primary/10', badge: 'bg-primary/10 text-primary-text border-primary/30' },
 };
 
 const PropertyRow: React.FC<{ icon: React.ReactNode; label: string; children: React.ReactNode; className?: string }> = ({ icon, label, children, className }) => (
@@ -185,7 +185,7 @@ export const TaskEditorModal: React.FC<TaskEditorModalProps> = ({
     const updatedTask = { ...formState, status: newStatus, completed_at, id: formState.id };
     setFormState(updatedTask);
     if (mode === 'view' && !isNew) {
-      onSave(updatedTask);
+      onSave(updatedTask, true);
     }
   };
 
@@ -212,7 +212,7 @@ export const TaskEditorModal: React.FC<TaskEditorModalProps> = ({
     setFormState(updatedTask);
     
     if (mode === 'view' && !isNew) {
-      onSave(updatedTask);
+      onSave(updatedTask, true);
     }
   };
 
@@ -384,7 +384,7 @@ export const TaskEditorModal: React.FC<TaskEditorModalProps> = ({
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {formState.project_id && (
                   <div className="flex items-center gap-3 p-3 bg-[var(--bg-card)] rounded-xl border border-[var(--border-subtle)]">
-                    <div className="p-2 bg-[var(--color-primary)]/10 rounded-lg text-[var(--color-primary)] shrink-0">
+                    <div className="p-2 bg-[var(--color-primary)]/10 rounded-lg text-[var(--color-primary-text)] shrink-0">
                       <BriefcaseIcon className="w-5 h-5"/>
                     </div>
                     <div className="text-right">
@@ -398,7 +398,7 @@ export const TaskEditorModal: React.FC<TaskEditorModalProps> = ({
                 
                 {formState.due_date && (
                   <div className="flex items-center gap-3 p-3 bg-[var(--bg-card)] rounded-xl border border-[var(--border-subtle)]">
-                    <div className="p-2 bg-[var(--color-primary)]/10 rounded-lg text-[var(--color-primary)] shrink-0">
+                    <div className="p-2 bg-[var(--color-primary)]/10 rounded-lg text-[var(--color-primary-text)] shrink-0">
                       <CalendarIcon className="w-5 h-5"/>
                     </div>
                     <div className="text-right">
@@ -406,7 +406,7 @@ export const TaskEditorModal: React.FC<TaskEditorModalProps> = ({
                       <div className="flex items-center gap-2">
                         <span className="text-xs font-semibold text-[var(--text-main)]">{formatPersianDate(formState.due_date)}</span>
                         {hasTime && (
-                          <span className="text-[10px] font-mono bg-[var(--color-primary)]/10 text-[var(--color-primary)] px-1.5 py-0.5 rounded border border-[var(--border-neon)]">
+                          <span className="text-[10px] font-mono bg-[var(--color-primary)]/10 text-[var(--color-primary-text)] px-1.5 py-0.5 rounded border border-[var(--border-neon)]">
                             {selectedTime}
                           </span>
                         )}
@@ -513,7 +513,7 @@ export const TaskEditorModal: React.FC<TaskEditorModalProps> = ({
                   ) : (
                     <button 
                       onClick={handleAddDate} 
-                      className="text-xs text-[var(--color-primary)] hover:opacity-80 flex items-center gap-1 font-bold py-1"
+                      className="text-xs text-[var(--color-primary-text)] hover:opacity-80 flex items-center gap-1 font-bold py-1"
                     >
                       <PlusIcon className="w-3.5 h-3.5" /> افزودن تاریخ ددلاین
                     </button>
@@ -540,7 +540,7 @@ export const TaskEditorModal: React.FC<TaskEditorModalProps> = ({
                     ) : (
                       <button 
                         onClick={handleAddTime} 
-                        className="text-xs text-[var(--color-primary)] hover:opacity-80 flex items-center gap-1 font-bold py-1"
+                        className="text-xs text-[var(--color-primary-text)] hover:opacity-80 flex items-center gap-1 font-bold py-1"
                       >
                         <PlusIcon className="w-3.5 h-3.5" /> افزودن ساعت مشخص
                       </button>
@@ -636,7 +636,7 @@ export const TaskEditorModal: React.FC<TaskEditorModalProps> = ({
           </button>
           {!isNew && (
             <button 
-              onClick={() => setMode('view')} 
+              onClick={() => { setFormState(task); setMode('view'); }} 
               className="px-5 py-3 bg-[var(--bg-card)] backdrop-blur-xl hover:bg-[var(--nav-hover-bg)] text-[var(--text-main)] rounded-xl font-bold transition-colors text-sm border border-[var(--border-subtle)]"
             >
               انصراف

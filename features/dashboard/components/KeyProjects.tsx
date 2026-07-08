@@ -2,6 +2,7 @@ import React, { useMemo } from 'react';
 import { useData } from '../../../contexts/DataContext';
 import { Priority } from '../../../types';
 import { FolderGit2Icon, ArrowLeftIcon } from '../../../components/icons';
+import { toPersianDigits } from '../../../utils/persianNumbers';
 
 export const KeyProjects: React.FC = () => {
   const { projects, tasks } = useData();
@@ -20,7 +21,7 @@ export const KeyProjects: React.FC = () => {
   // If there are no high priority projects, show the empty state
   if (highPriorityProjects.length === 0) {
     return (
-      <div className="tile-lime min-h-[200px] p-4 rounded-[var(--radius-lg)] flex flex-col justify-between shadow-sm" id="key-projects-panel-empty">
+      <div className="tile-brand min-h-[200px] p-4 rounded-[var(--radius-lg)] flex flex-col justify-between shadow-sm" id="key-projects-panel-empty">
         <div className="flex justify-between items-center">
           <div className="flex items-center gap-2">
             <FolderGit2Icon className="w-5 h-5 text-[var(--text-on-primary)]" />
@@ -41,7 +42,7 @@ export const KeyProjects: React.FC = () => {
   const project = highPriorityProjects[0];
 
   return (
-    <div className="tile-lime min-h-[200px] p-4 rounded-[var(--radius-lg)] flex flex-col justify-between shadow-sm" id="key-projects-panel">
+    <div className="tile-brand min-h-[200px] p-4 rounded-[var(--radius-lg)] flex flex-col justify-between shadow-sm" id="key-projects-panel">
       <div className="flex justify-between items-center">
         <div className="flex items-center gap-2">
           <FolderGit2Icon className="w-5 h-5 text-[var(--text-on-primary)]" />
@@ -55,14 +56,14 @@ export const KeyProjects: React.FC = () => {
           {project.title}
         </h3>
         <p className="text-[10px] text-[var(--text-on-primary)] opacity-80 mt-1">
-          کارهای باقی‌مانده: {project.remaining}
+          کارهای باقی‌مانده: {toPersianDigits(project.remaining)}
         </p>
       </div>
 
       <div className="group mt-auto">
         <div className="flex justify-between items-center mb-1.5">
           <span className="text-[10px] font-bold text-[var(--text-on-primary)]">پیشرفت پروژه</span>
-          <span className="text-xs font-mono font-bold text-[var(--text-on-primary)]">{project.progress}%</span>
+          <span className="text-xs font-mono font-bold text-[var(--text-on-primary)]">{toPersianDigits(project.progress)}%</span>
         </div>
         <div className="h-2 rounded-full bg-black/10 overflow-hidden">
           <div 
