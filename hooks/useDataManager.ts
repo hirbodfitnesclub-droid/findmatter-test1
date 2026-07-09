@@ -363,8 +363,19 @@ export const useDataManager = (user: any) => {
 
     try {
       const updatedTask = await taskService.updateTask(task.id, task);
-      setTasks(prev => prev.map(t => t.id === updatedTask.id ? updatedTask : t));
-      const finalTasks = nextTasks.map(t => t.id === updatedTask.id ? updatedTask : t);
+      let finalTasks: Task[] = [];
+      setTasks(prev => {
+        finalTasks = prev.map(t => {
+          if (t.id === updatedTask.id) {
+            return {
+              ...updatedTask,
+              checklist: t.checklist
+            };
+          }
+          return t;
+        });
+        return finalTasks;
+      });
       await saveSnapshot(userId, 'tasks', finalTasks);
       addNotification("کار به‌روزرسانی شد.");
     } catch (error) {
@@ -431,8 +442,19 @@ export const useDataManager = (user: any) => {
 
     try {
       const updatedTask = await taskService.updateTask(id, payload);
-      setTasks(prev => prev.map(t => t.id === id ? updatedTask : t));
-      const finalTasks = nextTasks.map(t => t.id === id ? updatedTask : t);
+      let finalTasks: Task[] = [];
+      setTasks(prev => {
+        finalTasks = prev.map(t => {
+          if (t.id === id) {
+            return {
+              ...updatedTask,
+              checklist: t.checklist
+            };
+          }
+          return t;
+        });
+        return finalTasks;
+      });
       await saveSnapshot(userId, 'tasks', finalTasks);
     } catch (error) {
       const msg = (error as any)?.message || '';

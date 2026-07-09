@@ -6,8 +6,30 @@ export const persianMonths = [
   'مهر', 'آبان', 'آذر', 'دی', 'بهمن', 'اسفند'
 ];
 
+export const getTehranNow = (): Date => {
+  return new Date();
+};
+
+export const getTehranLocalDate = (date?: Date): Date => {
+  const d = date || getTehranNow();
+  const tehranStr = getTehranDateString(d);
+  const [y, m, dNum] = tehranStr.split('-').map(Number);
+  return new Date(y, m - 1, dNum, 12, 0, 0);
+};
+
 export const toJalaali = (date: Date) => {
-  return jalaali.toJalaali(date);
+  // Always convert using Tehran timezone component elements to ensure consistency
+  const formatter = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'Asia/Tehran',
+    year: 'numeric',
+    month: 'numeric',
+    day: 'numeric'
+  });
+  const parts = formatter.formatToParts(date);
+  const gy = parseInt(parts.find(p => p.type === 'year')!.value, 10);
+  const gm = parseInt(parts.find(p => p.type === 'month')!.value, 10);
+  const gd = parseInt(parts.find(p => p.type === 'day')!.value, 10);
+  return jalaali.toJalaali(gy, gm, gd);
 };
 
 export const toGregorian = (jy: number, jm: number, jd: number) => {
@@ -31,7 +53,7 @@ export const getDaysInPersianMonth = (year: number, month: number) => {
 };
 
 export const getTehranDateString = (date?: Date): string => {
-  const d = date || new Date();
+  const d = date || getTehranNow();
   const formatter = new Intl.DateTimeFormat('en-CA', {
     timeZone: 'Asia/Tehran',
     year: 'numeric',

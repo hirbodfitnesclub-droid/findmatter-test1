@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useData } from '../../../contexts/DataContext';
-import { compareTehranDates, getTehranDateString, formatPersianDate } from '../../../utils/dateUtils';
+import { compareTehranDates, getTehranDateString, formatPersianDate, getTehranNow } from '../../../utils/dateUtils';
 import { Task, Priority } from '../../../types';
 import { 
   X, Calendar, ArrowRight, CheckCircle2, 
@@ -22,7 +22,7 @@ const priorityConfig: Record<string, { label: string; badge: string }> = {
 export const OverdueTasksModal: React.FC<OverdueTasksModalProps> = ({ isOpen, onClose }) => {
   const { tasks, projects, updateTask, addNotification } = useData();
 
-  const todayStr = useMemo(() => getTehranDateString(new Date()), []);
+  const todayStr = useMemo(() => getTehranDateString(getTehranNow()), []);
 
   // Filter overdue tasks: not done, has due_date, and due_date is before today
   const overdueTasks = useMemo(() => {
@@ -35,7 +35,7 @@ export const OverdueTasksModal: React.FC<OverdueTasksModalProps> = ({ isOpen, on
 
   // Helper to shift a task's date to today or tomorrow while keeping its original time if it had any
   const getUpdatedDueDate = (task: Task, target: 'today' | 'tomorrow'): string => {
-    const targetDate = new Date();
+    const targetDate = getTehranNow();
     if (target === 'tomorrow') {
       targetDate.setDate(targetDate.getDate() + 1);
     }

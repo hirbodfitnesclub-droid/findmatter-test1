@@ -181,7 +181,7 @@ export const UsageMeter: React.FC<{ compact?: boolean }> = ({ compact = false })
             <span>تاریخ پایان اشتراک:</span>
           </div>
           <span className="font-mono text-[var(--text-main)]">
-            {new Date(usage.expires_at).toLocaleDateString('fa-IR')}
+            {toPersianDigits(new Date(usage.expires_at).toLocaleDateString('fa-IR'))}
           </span>
         </div>
       )}

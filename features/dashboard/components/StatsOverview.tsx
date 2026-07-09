@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { useData } from '../../../contexts/DataContext';
-import { getTehranDateString, compareTehranDates, isSameTehranDay } from '../../../utils/dateUtils';
+import { getTehranDateString, compareTehranDates, isSameTehranDay, getTehranNow } from '../../../utils/dateUtils';
 import { Priority } from '../../../types';
 import { toPersianDigits } from '../../../utils/persianNumbers';
 
@@ -15,7 +15,7 @@ export const StatsOverview: React.FC<StatsOverviewProps> = ({ onOpenWeeklyReport
   const { tasks, projects, selectedDate } = useData();
 
   const stats = useMemo(() => {
-    const todayStr = getTehranDateString(new Date());
+    const todayStr = getTehranDateString(getTehranNow());
 
     const overdue = tasks.filter(t => 
       t.status !== 'done' && 
@@ -30,7 +30,7 @@ export const StatsOverview: React.FC<StatsOverviewProps> = ({ onOpenWeeklyReport
     const completedToday = tasks.filter(t => 
       t.status === 'done' && 
       t.due_date && 
-      isSameTehranDay(t.due_date, new Date())
+      isSameTehranDay(t.due_date, getTehranNow())
     ).length;
 
     const inbox = tasks.filter(t => 
@@ -43,7 +43,7 @@ export const StatsOverview: React.FC<StatsOverviewProps> = ({ onOpenWeeklyReport
 
   const totalTodayTasks = useMemo(() => {
     return tasks.filter(t => 
-      t.due_date && isSameTehranDay(t.due_date, new Date())
+      t.due_date && isSameTehranDay(t.due_date, getTehranNow())
     ).length;
   }, [tasks]);
 

@@ -9,7 +9,8 @@ import {
 import { 
   getTehranDateString, 
   formatPersianDate, 
-  compareTehranDates 
+  compareTehranDates,
+  getTehranNow
 } from '../../../utils/dateUtils';
 import { toPersianDigits } from '../../../utils/persianNumbers';
 
@@ -25,7 +26,7 @@ export const WeeklyReportModal: React.FC<WeeklyReportModalProps> = ({ isOpen, on
   // Time boundaries for the current Jalaali week (Saturday - Friday) in Tehran Time
   const weekBoundaries = useMemo(() => {
     // 1. Get currentTime in Asia/Tehran
-    const now = new Date();
+    const now = getTehranNow();
     const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
     const tehranNow = new Date(utc + (3600000 * 3.5));
     
@@ -75,7 +76,7 @@ export const WeeklyReportModal: React.FC<WeeklyReportModalProps> = ({ isOpen, on
 
   // Health Score calculations: completed on time vs completed overdue
   const stats = useMemo(() => {
-    const todayStr = getTehranDateString(new Date());
+    const todayStr = getTehranDateString(getTehranNow());
 
     // Completed on time: either had no due date, or completed_at <= due_date
     const onTimeDoneTasks = doneThisWeek.filter(t => {
@@ -192,7 +193,7 @@ export const WeeklyReportModal: React.FC<WeeklyReportModalProps> = ({ isOpen, on
               <div className="text-right space-y-1 sm:space-y-2">
                 <span className="text-[10px] sm:text-xs text-[var(--text-muted)] block font-semibold">امتیاز بهره‌وری</span>
                 <div className="flex items-baseline justify-start gap-1">
-                  <span className="text-4xl sm:text-5xl font-black text-[var(--text-main)] font-mono">{toPersianDigits(stats.healthScore)}</span>
+                   <span className="text-4xl sm:text-5xl font-black text-[var(--text-main)] font-mono">{toPersianDigits(stats.healthScore)}</span>
                   <span className="text-[10px] sm:text-sm text-[var(--text-muted)] font-medium select-none">/ ۱۰۰</span>
                 </div>
                 <div className={`px-2 py-0.5 sm:px-3 sm:py-1 rounded-full text-[10px] sm:text-xs font-bold border inline-block ${healthRating.bg} ${healthRating.color}`}>
@@ -315,7 +316,7 @@ export const WeeklyReportModal: React.FC<WeeklyReportModalProps> = ({ isOpen, on
                     ) : (
                       todoThisWeek.map(t => {
                         // Check if overdue: todayStr > t.due_date
-                        const todayStr = getTehranDateString(new Date());
+                        const todayStr = getTehranDateString(getTehranNow());
                         const dueStr = getTehranDateString(new Date(t.due_date || ''));
                         const isOverdue = todayStr > dueStr;
 

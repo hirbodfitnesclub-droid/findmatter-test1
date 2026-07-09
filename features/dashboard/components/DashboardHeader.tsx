@@ -2,6 +2,7 @@ import React from 'react';
 import { useAuth } from '../../../contexts/AuthContext';
 import { useData } from '../../../contexts/DataContext';
 import { UserIcon } from '../../../components/icons';
+import { getTehranNow } from '../../../utils/dateUtils';
 
 interface DashboardHeaderProps {
   onOpenProfile: () => void;
@@ -36,7 +37,7 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
       hour: 'numeric',
       hour12: false,
     });
-    let hour = parseInt(formatter.format(new Date()), 10);
+    let hour = parseInt(formatter.format(getTehranNow()), 10);
     if (hour === 24) hour = 0;
     return hour;
   };

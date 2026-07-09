@@ -1,6 +1,5 @@
 import React, { useMemo } from 'react';
-import { toJalaali, persianMonths, isSameTehranDay } from '../../../utils/dateUtils';
-import { toPersianDigits } from '../../../utils/persianNumbers';
+import { toJalaali, persianMonths, isSameTehranDay, getTehranNow } from '../../../utils/dateUtils';
 
 interface WeekCalendarProps {
   selectedDate: Date;
@@ -13,9 +12,9 @@ const getCustomDayName = (date: Date) => {
     case 6: return 'شنبه';
     case 0: return 'یکشنبه';
     case 1: return 'دوشنبه';
-    case 2: return 'سهشنبه';
+    case 2: return 'سه‌شنبه';
     case 3: return 'چهارشنبه';
-    case 4: return 'پنجشنبه';
+    case 4: return 'پنج‌شنبه';
     case 5: return 'جمعه';
     default: return '';
   }
@@ -31,16 +30,16 @@ const SHORT_DAY_NAMES: Record<string, string> = {
   'شنبه': 'شنبه',
   'یکشنبه': 'یک',
   'دوشنبه': 'دو',
-  'سهشنبه': 'سه',
+  'سه‌شنبه': 'سه',
   'چهارشنبه': 'چهار',
-  'پنجشنبه': 'پنج',
+  'پنج‌شنبه': 'پنج',
   'جمعه': 'جمعه',
 };
 
 export const WeekCalendar: React.FC<WeekCalendarProps> = ({ selectedDate, onDateChange }) => {
   const weekDays = useMemo(() => {
     const days = [];
-    const today = new Date();
+    const today = getTehranNow();
     const startOfWeek = new Date(selectedDate);
     // Center selected date
     startOfWeek.setDate(startOfWeek.getDate() - 3);
@@ -61,7 +60,7 @@ export const WeekCalendar: React.FC<WeekCalendarProps> = ({ selectedDate, onDate
 
   const headerInfo = useMemo(() => {
     const j = toJalaali(selectedDate);
-    return `${persianMonths[j.jm - 1]} ${toPersianDigits(j.jy)}`;
+    return `${persianMonths[j.jm - 1]} ${j.jy}`;
   }, [selectedDate]);
 
   const nextWeekDays = useMemo(() => {

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Task, Priority, Project, Note, ChecklistItem } from '../../../types';
 import { 
   XIcon, TrashIcon, CheckIcon, CalendarIcon, FlagIcon, 
@@ -11,6 +11,7 @@ import { formatPersianDate } from '../../../utils/dateUtils';
 import { useData } from '../../../contexts/DataContext';
 import { getLinkedNotes, unlinkTaskNote, linkTaskNote } from '../../../services/linkService';
 import { LinkNotePicker } from './LinkNotePicker';
+import { toPersianDigits } from '../../../utils/persianNumbers';
 
 interface TaskEditorModalProps {
   task: Task | Partial<Task>;
@@ -18,7 +19,7 @@ interface TaskEditorModalProps {
   projects: Project[];
   notes: Note[];
   onClose: () => void;
-  onSave: (task: Task | Partial<Task>, keepOpen?: boolean) => Promise<Task | void> | void;
+  onSave: (task: Task | Partial<Task>, keepOpen?: boolean) => Promise<Task> | any;
   onDelete: (id: string) => void;
 }
 
@@ -63,6 +64,11 @@ export const TaskEditorModal: React.FC<TaskEditorModalProps> = ({
   
   const isNew = !('id' in task);
 
+  const prevTaskIdRef = useRef<string | undefined>(undefined);
+  const prevIsOpenRef = useRef<boolean>(false);
+  const prevModeRef = useRef<'view' | 'edit'>('view');
+  const hasLoadedLinksRef = useRef(false);
+
   // Load linked notes
   const loadLinks = async () => {
     if (task.id) {
@@ -77,65 +83,91 @@ export const TaskEditorModal: React.FC<TaskEditorModalProps> = ({
     }
   };
 
+  // Dedicated useEffect for loadLinks to prevent N+1 queries on every checklist toggle / edit
   useEffect(() => {
     if (isOpen) {
-      setFormState(task);
-      setMode(isNew ? 'edit' : 'view');
-      setIsVisible(true);
-      setNewItemText('');
-      loadLinks();
-      setPendingLinkIds([]);
-      
-      // Analyze existing due_date
-      if (task.due_date) {
-        setHasDate(true);
-        const date = new Date(task.due_date);
-        
-        // Convert to Asia/Tehran hour & minute
-        let h = date.getHours();
-        let m = date.getMinutes();
-        try {
-          const formatter = new Intl.DateTimeFormat('en-US', {
-            timeZone: 'Asia/Tehran',
-            hour: 'numeric',
-            minute: 'numeric',
-            hour12: false
-          });
-          const parts = formatter.formatToParts(date);
-          const hourPart = parts.find(p => p.type === 'hour')?.value;
-          const minPart = parts.find(p => p.type === 'minute')?.value;
-          if (hourPart) h = parseInt(hourPart);
-          if (minPart) m = parseInt(minPart);
-        } catch (e) {
-          console.error('Error formatting time in Asia/Tehran timezone:', e);
-        }
-
-        const formattedTime = `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
-        setSelectedTime(formattedTime);
-        
-        // Edge Case: Check if hour:minute is exactly 12:00 in Tehran timezone.
-        // If it is 12:00, we treat it as Date-only (hasTime = false)
-        // to avoid displaying noon by default, but allow setting time explicitly.
-        if (h === 12 && m === 0) {
-          setHasTime(false);
-        } else {
-          setHasTime(true);
-        }
-      } else {
-        setHasDate(false);
-        setHasTime(false);
-        setSelectedTime('12:00');
+      if (!hasLoadedLinksRef.current && task.id) {
+        loadLinks();
+        hasLoadedLinksRef.current = true;
       }
+    } else {
+      hasLoadedLinksRef.current = false;
+    }
+  }, [isOpen, task.id]);
+
+  useEffect(() => {
+    const isEnteringEditMode = mode === 'edit' && prevModeRef.current !== 'edit';
+    const hasTaskIdChanged = task.id !== prevTaskIdRef.current;
+    const isOpening = isOpen && !prevIsOpenRef.current;
+
+    // Only reset formState when entering edit mode OR when task.id changes AND mode is 'view' OR when first opening
+    const shouldReset = isOpening || isEnteringEditMode || (hasTaskIdChanged && mode === 'view');
+
+    if (isOpen) {
+      if (shouldReset) {
+        setFormState(task);
+        if (isOpening) {
+          setMode(isNew ? 'edit' : 'view');
+        }
+        setNewItemText('');
+        setPendingLinkIds([]);
+        
+        // Analyze existing due_date
+        if (task.due_date) {
+          setHasDate(true);
+          const date = new Date(task.due_date);
+          
+          // Convert to Asia/Tehran hour & minute
+          let h = date.getHours();
+          let m = date.getMinutes();
+          try {
+            const formatter = new Intl.DateTimeFormat('en-US', {
+              timeZone: 'Asia/Tehran',
+              hour: 'numeric',
+              minute: 'numeric',
+              hour12: false
+            });
+            const parts = formatter.formatToParts(date);
+            const hourPart = parts.find(p => p.type === 'hour')?.value;
+            const minPart = parts.find(p => p.type === 'minute')?.value;
+            if (hourPart) h = parseInt(hourPart);
+            if (minPart) m = parseInt(minPart);
+          } catch (e) {
+            console.error('Error formatting time in Asia/Tehran timezone:', e);
+          }
+
+          const formattedTime = `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
+          setSelectedTime(formattedTime);
+          
+          // Edge Case: Check if hour:minute is exactly 12:00 in Tehran timezone.
+          // If it is 12:00, we treat it as Date-only (hasTime = false)
+          // to avoid displaying noon by default, but allow setting time explicitly.
+          if (h === 12 && m === 0) {
+            setHasTime(false);
+          } else {
+            setHasTime(true);
+          }
+        } else {
+          setHasDate(false);
+          setHasTime(false);
+          setSelectedTime('12:00');
+        }
+      }
+      setIsVisible(true);
     } else {
       setIsVisible(false);
     }
+
+    prevTaskIdRef.current = task.id;
+    prevIsOpenRef.current = isOpen;
+    prevModeRef.current = mode;
     
     const handleEscape = (e: KeyboardEvent) => {
       if (e.key === 'Escape') handleClose();
     };
     document.addEventListener('keydown', handleEscape);
     return () => document.removeEventListener('keydown', handleEscape);
-  }, [isOpen, task]);
+  }, [isOpen, task, mode, isNew]);
 
   const handleClose = () => {
     onClose();
@@ -350,9 +382,9 @@ export const TaskEditorModal: React.FC<TaskEditorModalProps> = ({
                   <div className="flex items-center justify-between mb-3">
                     <div className="flex items-center gap-2 text-[var(--text-main)]">
                       <ListChecksIcon className="w-4 h-4 text-[var(--text-muted)]" />
-                      <span className="text-xs font-bold">زیرتسک‌ها ({formState.checklist.length})</span>
+                      <span className="text-xs font-bold">زیرتسک‌ها ({toPersianDigits(formState.checklist.length)})</span>
                     </div>
-                    <span className="text-xs font-mono text-[var(--text-muted)]">{calculateProgress()}%</span>
+                    <span className="text-xs font-mono text-[var(--text-muted)]">{toPersianDigits(calculateProgress())}%</span>
                   </div>
                   <div className="w-full bg-[var(--nav-hover-bg)] h-1 rounded-full mb-4 overflow-hidden">
                     <div 
@@ -587,7 +619,7 @@ export const TaskEditorModal: React.FC<TaskEditorModalProps> = ({
               <div className="p-4 bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-2xl space-y-3">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-bold text-[var(--text-muted)]">یادداشت‌های مرتبط</span>
-                  <span className="text-[10px] font-mono text-[var(--text-muted)]">{displayedNotes.length} لینک شده</span>
+                  <span className="text-[10px] font-mono text-[var(--text-muted)]">{toPersianDigits(displayedNotes.length)} لینک شده</span>
                 </div>
 
                 {displayedNotes.length > 0 ? (
@@ -636,7 +668,7 @@ export const TaskEditorModal: React.FC<TaskEditorModalProps> = ({
           </button>
           {!isNew && (
             <button 
-              onClick={() => { setFormState(task); setMode('view'); }} 
+              onClick={() => setMode('view')} 
               className="px-5 py-3 bg-[var(--bg-card)] backdrop-blur-xl hover:bg-[var(--nav-hover-bg)] text-[var(--text-main)] rounded-xl font-bold transition-colors text-sm border border-[var(--border-subtle)]"
             >
               انصراف

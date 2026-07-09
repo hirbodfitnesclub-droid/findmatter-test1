@@ -5,7 +5,6 @@ import {
   monthlyTrend, 
   weeklyHeatmap 
 } from '../../../utils/habitStats';
-import { toPersianDigits } from '../../../utils/persianNumbers';
 import { 
   FlameIcon, 
   SparklesIcon, 
@@ -13,6 +12,7 @@ import {
   ClockIcon, 
   TargetIcon 
 } from '../../../components/icons';
+import { toPersianDigits } from '../../../utils/persianNumbers';
 
 interface HabitStatsViewProps {
   completedDates: string[];

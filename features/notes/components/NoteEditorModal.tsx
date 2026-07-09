@@ -8,6 +8,7 @@ import {
 import { getLinkedTasks, unlinkTaskNote, linkTaskNote } from '../../../services/linkService';
 import { LinkTaskPicker } from './LinkTaskPicker';
 import { useData } from '../../../contexts/DataContext';
+import { toPersianDigits } from '../../../utils/persianNumbers';
 
 interface NoteEditorModalProps {
   note: Note | Partial<Note>;
@@ -239,7 +240,7 @@ export const NoteEditorModal: React.FC<NoteEditorModalProps> = ({
             <div className="p-4 bg-[var(--bg-card)]/40 border border-[var(--border-subtle)] rounded-2xl space-y-3">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-bold text-[var(--text-muted)]">کارهای مرتبط</span>
-                <span className="text-[10px] font-mono text-[var(--text-muted)]">{displayedTasks.length} لینک شده</span>
+                <span className="text-[10px] font-mono text-[var(--text-muted)]">{toPersianDigits(displayedTasks.length)} لینک شده</span>
               </div>
 
               {displayedTasks.length > 0 ? (

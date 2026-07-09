@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { useData } from '../../../contexts/DataContext';
-import { toJalaali, isSameTehranDay } from '../../../utils/dateUtils';
+import { toJalaali, isSameTehranDay, getTehranNow, getTehranLocalDate } from '../../../utils/dateUtils';
 import { TrendingUpIcon, TrendingDownIcon } from '../../../components/icons';
 
 export const ProductivityChart: React.FC = () => {
@@ -8,7 +8,7 @@ export const ProductivityChart: React.FC = () => {
 
   // 1. Calculate Persian week days (Saturday to Friday) of the current week
   const weekDays = useMemo(() => {
-    const today = new Date();
+    const today = getTehranLocalDate(getTehranNow());
     // Get offset from Saturday: Sunday = 1, Monday = 2, ..., Friday = 6, Saturday = 0
     const offsetFromSaturday = (today.getDay() + 1) % 7;
     
@@ -24,59 +24,136 @@ export const ProductivityChart: React.FC = () => {
     return days.reverse();
   }, []);
 
-  // 2. Compute progress percentage for each day of the current week (completed / total due)
+  // 2. Compute progress percentage for each day of the current week (completed / total due) with deduplication
   const weekData = useMemo(() => {
-    return weekDays.map((day) => {
-      // Find tasks due on this day or completed on this day (retroactive)
-      const dayTasks = tasks.filter((t) => {
-        if (t.due_date && isSameTehranDay(t.due_date, day)) return true;
-        if (t.completed_at && isSameTehranDay(t.completed_at, day)) return true;
-        return false;
-      });
+    const countedIds = new Set<string>();
+    const dayTasksMap = new Map<string, { total: any[]; completed: any[] }>();
 
-      const completedCount = dayTasks.filter((t) => t.status === 'done').length;
-      const progress = dayTasks.length > 0 ? Math.round((completedCount / dayTasks.length) * 100) : 0;
+    weekDays.forEach(day => {
+      dayTasksMap.set(day.toDateString(), { total: [], completed: [] });
+    });
+
+    // Phase 1: completed_at matching
+    weekDays.forEach(day => {
+      const dayStr = day.toDateString();
+      const completedOnDay = tasks.filter(t => 
+        t.status === 'done' && 
+        t.completed_at && 
+        isSameTehranDay(t.completed_at, day)
+      );
+      completedOnDay.forEach(t => {
+        if (!countedIds.has(t.id)) {
+          countedIds.add(t.id);
+          const current = dayTasksMap.get(dayStr)!;
+          current.total.push(t);
+          current.completed.push(t);
+        }
+      });
+    });
+
+    // Phase 2: due_date matching fallback
+    weekDays.forEach(day => {
+      const dayStr = day.toDateString();
+      const dueOnDay = tasks.filter(t => 
+        t.due_date && 
+        isSameTehranDay(t.due_date, day) && 
+        !countedIds.has(t.id)
+      );
+      dueOnDay.forEach(t => {
+        countedIds.add(t.id);
+        const current = dayTasksMap.get(dayStr)!;
+        current.total.push(t);
+        if (t.status === 'done') {
+          current.completed.push(t);
+        }
+      });
+    });
+
+    return weekDays.map((day) => {
+      const dayStr = day.toDateString();
+      const { total, completed } = dayTasksMap.get(dayStr)!;
+      const progress = total.length > 0 ? Math.round((completed.length / total.length) * 100) : 0;
 
       return {
         day,
         progress,
-        isToday: isSameTehranDay(day, new Date()),
+        isToday: isSameTehranDay(day, getTehranNow()),
       };
     });
   }, [tasks, weekDays]);
 
   // 3. Compute Weekly Productivity Rate
   const weeklyRate = useMemo(() => {
-    const currentWeekTasks = tasks.filter((t) => {
-      return weekDays.some((wd) => {
-        if (t.due_date && isSameTehranDay(t.due_date, wd)) return true;
-        if (t.completed_at && isSameTehranDay(t.completed_at, wd)) return true;
-        return false;
-      });
+    const countedIds = new Set<string>();
+    const totalTasks: any[] = [];
+    const completedTasks: any[] = [];
+
+    // Phase 1: completed_at falls in this week
+    tasks.forEach(t => {
+      if (t.status === 'done' && t.completed_at) {
+        const inWeek = weekDays.some(wd => isSameTehranDay(t.completed_at!, wd));
+        if (inWeek) {
+          countedIds.add(t.id);
+          totalTasks.push(t);
+          completedTasks.push(t);
+        }
+      }
     });
-    const currentWeekCompleted = currentWeekTasks.filter((t) => t.status === 'done');
-    return currentWeekTasks.length > 0
-      ? Math.round((currentWeekCompleted.length / currentWeekTasks.length) * 100)
+
+    // Phase 2: due_date falls in this week (and not already counted)
+    tasks.forEach(t => {
+      if (!countedIds.has(t.id) && t.due_date) {
+        const inWeek = weekDays.some(wd => isSameTehranDay(t.due_date!, wd));
+        if (inWeek) {
+          countedIds.add(t.id);
+          totalTasks.push(t);
+          if (t.status === 'done') {
+            completedTasks.push(t);
+          }
+        }
+      }
+    });
+
+    return totalTasks.length > 0
+      ? Math.round((completedTasks.length / totalTasks.length) * 100)
       : 0;
   }, [tasks, weekDays]);
 
   // 4. Compute Monthly Productivity Rate
   const monthlyRate = useMemo(() => {
-    const todayJ = toJalaali(new Date());
-    const currentMonthTasks = tasks.filter((t) => {
-      if (t.due_date) {
-        const j = toJalaali(new Date(t.due_date));
-        if (j.jy === todayJ.jy && j.jm === todayJ.jm) return true;
-      }
-      if (t.completed_at) {
+    const todayJ = toJalaali(getTehranNow());
+    const countedIds = new Set<string>();
+    const totalTasks: any[] = [];
+    const completedTasks: any[] = [];
+
+    // Phase 1: completed_at falls in this month
+    tasks.forEach(t => {
+      if (t.status === 'done' && t.completed_at) {
         const j = toJalaali(new Date(t.completed_at));
-        if (j.jy === todayJ.jy && j.jm === todayJ.jm) return true;
+        if (j.jy === todayJ.jy && j.jm === todayJ.jm) {
+          countedIds.add(t.id);
+          totalTasks.push(t);
+          completedTasks.push(t);
+        }
       }
-      return false;
     });
-    const currentMonthCompleted = currentMonthTasks.filter((t) => t.status === 'done');
-    return currentMonthTasks.length > 0
-      ? Math.round((currentMonthCompleted.length / currentMonthTasks.length) * 100)
+
+    // Phase 2: due_date falls in this month (and not already counted)
+    tasks.forEach(t => {
+      if (!countedIds.has(t.id) && t.due_date) {
+        const j = toJalaali(new Date(t.due_date));
+        if (j.jy === todayJ.jy && j.jm === todayJ.jm) {
+          countedIds.add(t.id);
+          totalTasks.push(t);
+          if (t.status === 'done') {
+            completedTasks.push(t);
+          }
+        }
+      }
+    });
+
+    return totalTasks.length > 0
+      ? Math.round((completedTasks.length / totalTasks.length) * 100)
       : 0;
   }, [tasks]);
 
@@ -188,20 +265,18 @@ export const ProductivityChart: React.FC = () => {
             if (d.isToday) {
               return (
                 <g key={index}>
-                  {/* Dashed outline for the remaining (unfilled) portion above today's progress */}
-                  {barHeight < maxBarHeight && (
-                    <rect
-                      x={x}
-                      y={5}
-                      width={colWidth}
-                      height={maxBarHeight - barHeight}
-                      rx={Math.min(8, (maxBarHeight - barHeight) / 2)}
-                      fill="none"
-                      stroke="rgba(255,255,255,0.6)"
-                      strokeWidth="1.5"
-                      strokeDasharray="4 3"
-                    />
-                  )}
+                  {/* Outer dashed indicator for today's target container */}
+                  <rect
+                    x={x}
+                    y={5}
+                    width={colWidth}
+                    height={maxBarHeight}
+                    rx={8}
+                    fill="none"
+                    stroke="rgba(255,255,255,0.6)"
+                    strokeWidth="1.5"
+                    strokeDasharray="4 3"
+                  />
                   {/* Solid inner actual progress for today */}
                   {barHeight > 0 && (
                     <rect
@@ -209,7 +284,7 @@ export const ProductivityChart: React.FC = () => {
                       y={y}
                       width={colWidth}
                       height={barHeight}
-                      rx={Math.min(8, barHeight / 2)}
+                      rx={8}
                       fill="rgba(255,255,255,0.9)"
                     />
                   )}
@@ -226,7 +301,7 @@ export const ProductivityChart: React.FC = () => {
                     y={y}
                     width={colWidth}
                     height={barHeight}
-                    rx={Math.min(8, barHeight / 2)}
+                    rx={8}
                     fill="rgba(255,255,255,0.9)"
                   />
                 )}
@@ -250,7 +325,7 @@ export const ProductivityChart: React.FC = () => {
           <g fill="rgba(255,255,255,0.4)" fontSize="7" fontWeight="bold" textAnchor="middle">
             {weekData.map((d, index) => {
               const x = colXStart + index * (colWidth + colGap) + colWidth / 2;
-              const daysOfWeek = ['یکشنبه', 'دوشنبه', 'سهشنبه', 'چهارشنبه', 'پنجشنبه', 'جمعه', 'شنبه'];
+              const daysOfWeek = ['یکشنبه', 'دوشنبه', 'سه‌شنبه', 'چهارشنبه', 'پنج‌شنبه', 'جمعه', 'شنبه'];
               const dayName = daysOfWeek[d.day.getDay()];
               return (
                 <text key={index} x={x} y="115">

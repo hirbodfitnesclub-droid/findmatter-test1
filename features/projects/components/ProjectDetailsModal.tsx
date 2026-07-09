@@ -5,6 +5,7 @@ import {
   ListChecksIcon, NotebookIcon, ChevronDownIcon, PencilIcon 
 } from '../../../components/icons';
 import { colorClasses, priorityClasses } from './ProjectCard';
+import { toPersianDigits } from '../../../utils/persianNumbers';
 
 interface ProjectDetailsModalProps {
   project: Project;
@@ -57,9 +58,11 @@ export const ProjectDetailsModal: React.FC<ProjectDetailsModalProps> = ({
     >
       {icon}
       <span>{label}</span>
-      <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-mono ${isActive ? `${colors.bg} ${colors.text}` : 'bg-[var(--bg-base)] text-[var(--text-muted)]'}`}>
-        {count}
-      </span>
+      {label !== 'نمای کلی' && (
+        <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-mono ${isActive ? `${colors.bg} ${colors.text}` : 'bg-[var(--bg-base)] text-[var(--text-muted)]'}`}>
+          {toPersianDigits(count)}
+        </span>
+      )}
     </button>
   );
 
@@ -119,7 +122,7 @@ export const ProjectDetailsModal: React.FC<ProjectDetailsModalProps> = ({
               <div className="p-4 bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-2xl">
                 <div className="flex justify-between items-center text-[10px] font-bold text-[var(--text-muted)] mb-2">
                   <span>پیشرفت پروژه</span>
-                  <span className="font-semibold text-[var(--text-main)]">{progress}%</span>
+                  <span className="font-semibold text-[var(--text-main)]">{toPersianDigits(progress)}%</span>
                 </div>
                 <div className="w-full bg-[var(--bg-base)] rounded-full h-2 overflow-hidden">
                   <div 
@@ -129,15 +132,15 @@ export const ProjectDetailsModal: React.FC<ProjectDetailsModalProps> = ({
                 </div>
                 <div className="grid grid-cols-3 gap-4 mt-5 pt-5 border-t border-[var(--border-subtle)]">
                   <div className="text-center">
-                    <p className="text-xl font-black text-[var(--text-main)] font-mono">{activeTasks.length}</p>
+                    <p className="text-xl font-black text-[var(--text-main)] font-mono">{toPersianDigits(activeTasks.length)}</p>
                     <p className="text-[10px] text-[var(--text-muted)] font-bold mt-0.5">کار فعال</p>
                   </div>
                   <div className="text-center">
-                    <p className="text-xl font-black text-[var(--text-main)] font-mono">{completedTasks.length}</p>
+                    <p className="text-xl font-black text-[var(--text-main)] font-mono">{toPersianDigits(completedTasks.length)}</p>
                     <p className="text-[10px] text-[var(--text-muted)] font-bold mt-0.5">انجام شده</p>
                   </div>
                   <div className="text-center">
-                    <p className="text-xl font-black text-[var(--text-main)] font-mono">{projectNotes.length}</p>
+                    <p className="text-xl font-black text-[var(--text-main)] font-mono">{toPersianDigits(projectNotes.length)}</p>
                     <p className="text-[10px] text-[var(--text-muted)] font-bold mt-0.5">یادداشت</p>
                   </div>
                 </div>
@@ -156,7 +159,7 @@ export const ProjectDetailsModal: React.FC<ProjectDetailsModalProps> = ({
 
           {activeTab === 'tasks' && (
             <div className="space-y-4">
-              <h3 className="text-xs font-bold text-[var(--text-muted)] mb-2">کارهای فعال ({activeTasks.length})</h3>
+              <h3 className="text-xs font-bold text-[var(--text-muted)] mb-2">کارهای فعال ({toPersianDigits(activeTasks.length)})</h3>
               {activeTasks.length > 0 ? (
                 <div className="space-y-2.5">
                   {activeTasks.map(t => {
@@ -183,7 +186,7 @@ export const ProjectDetailsModal: React.FC<ProjectDetailsModalProps> = ({
                     onClick={() => setShowCompleted(!showCompleted)} 
                     className="w-full flex justify-between items-center px-1 py-2 text-xs text-[var(--text-muted)] hover:text-[var(--text-main)] transition-colors font-bold"
                   >
-                    <span>انجام‌شده ({completedTasks.length})</span>
+                    <span>انجام‌شده ({toPersianDigits(completedTasks.length)})</span>
                     <ChevronDownIcon className={`w-4 h-4 transition-transform duration-350 ${!showCompleted ? '' : 'rotate-180'}`} />
                   </button>
                   {showCompleted && (
@@ -206,7 +209,7 @@ export const ProjectDetailsModal: React.FC<ProjectDetailsModalProps> = ({
 
           {activeTab === 'notes' && (
             <div className="space-y-2.5">
-              <h3 className="text-xs font-bold text-[var(--text-muted)] mb-2">یادداشت‌های مرتبط ({projectNotes.length})</h3>
+              <h3 className="text-xs font-bold text-[var(--text-muted)] mb-2">یادداشت‌های مرتبط ({toPersianDigits(projectNotes.length)})</h3>
               {projectNotes.length > 0 ? (
                 <div className="space-y-2.5">
                   {projectNotes.map(n => (

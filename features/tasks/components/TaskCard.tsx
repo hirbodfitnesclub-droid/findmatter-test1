@@ -4,6 +4,7 @@ import { Task, Priority, Project } from '../../../types';
 import { TrashIcon, ListChecksIcon, NotebookIcon } from '../../../components/icons';
 import { formatPersianDate } from '../../../utils/dateUtils';
 import { useData } from '../../../contexts/DataContext';
+import { toPersianDigits } from '../../../utils/persianNumbers';
 
 const priorityConfig = {
   [Priority.High]: { color: 'red', label: 'زیاد', bg: 'bg-[var(--semantic-error-soft)]', text: 'text-[var(--semantic-error)]', border: 'border-[var(--semantic-error)]/30' },
@@ -92,7 +93,7 @@ export const TaskCard: React.FC<TaskCardProps> = React.memo(({ task, onToggle, o
           {checklistTotal > 0 && (
             <div className={`flex items-center gap-1.5 bg-[var(--bg-card)] px-2 py-0.5 rounded-md border border-[var(--border-subtle)] ${checklistCompleted === checklistTotal ? 'text-[var(--color-primary-text)]' : 'text-[var(--text-muted)]'}`}>
               <ListChecksIcon className="w-3 h-3" />
-              <span className="font-mono text-[10px]">{checklistCompleted}/{checklistTotal}</span>
+              <span className="font-mono text-[10px]">{toPersianDigits(checklistCompleted)}/{toPersianDigits(checklistTotal)}</span>
             </div>
           )}
 

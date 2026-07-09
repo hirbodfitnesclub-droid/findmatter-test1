@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Citation } from '../../../types';
 import { XIcon, ListChecksIcon, NotebookIcon, ChevronLeftIcon, ChevronRightIcon, LinkIcon, BriefcaseIcon } from '../../../components/icons';
+import { toPersianDigits } from '../../../utils/persianNumbers';
 
 interface MoreCitationsModalProps {
   isOpen: boolean;
@@ -66,7 +67,7 @@ export const MoreCitationsModal: React.FC<MoreCitationsModalProps> = ({
     if (val === undefined || val === null) return 'N/A';
     // Score might be reciprocal rank fusion score or similarity score
     const percent = Math.min(100, Math.round(val * 100));
-    return `${percent}٪`;
+    return `${toPersianDigits(percent)}٪`;
   };
 
   return (
@@ -113,7 +114,7 @@ export const MoreCitationsModal: React.FC<MoreCitationsModalProps> = ({
             id="tab-task"
           >
             <ListChecksIcon className="w-3.5 h-3.5" />
-            کارهای مرتبط ({taskCitations.length})
+            کارهای مرتبط ({toPersianDigits(taskCitations.length)})
           </button>
           <button
             onClick={() => {
@@ -128,7 +129,7 @@ export const MoreCitationsModal: React.FC<MoreCitationsModalProps> = ({
             id="tab-note"
           >
             <NotebookIcon className="w-3.5 h-3.5" />
-            یادداشت‌های مرتبط ({noteCitations.length})
+            یادداشت‌های مرتبط ({toPersianDigits(noteCitations.length)})
           </button>
           <button
             onClick={() => {
@@ -143,7 +144,7 @@ export const MoreCitationsModal: React.FC<MoreCitationsModalProps> = ({
             id="tab-project"
           >
             <BriefcaseIcon className="w-3.5 h-3.5" />
-            پروژه‌های مرتبط ({projectCitations.length})
+            پروژه‌های مرتبط ({toPersianDigits(projectCitations.length)})
           </button>
         </div>
 
@@ -202,7 +203,7 @@ export const MoreCitationsModal: React.FC<MoreCitationsModalProps> = ({
             </button>
 
             <span className="text-[var(--text-muted)] font-semibold font-mono">
-              صفحه {currentPage} از {totalPages}
+              صفحه {toPersianDigits(currentPage)} از {toPersianDigits(totalPages)}
             </span>
 
             <button

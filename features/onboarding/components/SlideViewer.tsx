@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { ONBOARDING_SLIDES } from '../data/slides';
 import SlideCard from './SlideCard';
 import { ChevronRightIcon, ChevronLeftIcon } from '../../../components/icons';
+import { toPersianDigits } from '../../../utils/persianNumbers';
 
 interface SlideViewerProps {
   onFinish: () => void;
@@ -67,7 +68,7 @@ export const SlideViewer: React.FC<SlideViewerProps> = ({ onFinish, onSkip }) =>
         className="w-full flex justify-between items-center px-2 py-4"
       >
         <span id="slide-index-counter" className="text-xs font-bold text-[var(--text-muted)] font-mono">
-          {currentIndex + 1} / {ONBOARDING_SLIDES.length}
+          {toPersianDigits(currentIndex + 1)} / {toPersianDigits(ONBOARDING_SLIDES.length)}
         </span>
         <button
           id="slide-skip-btn"

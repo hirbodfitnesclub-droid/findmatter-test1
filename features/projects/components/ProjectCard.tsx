@@ -1,6 +1,7 @@
 import React from 'react';
 import { Project, Priority } from '../../../types';
 import { PencilIcon, TrashIcon, ListChecksIcon } from '../../../components/icons';
+import { toPersianDigits } from '../../../utils/persianNumbers';
 
 export const colorClasses: { [key: string]: { bg: string; border: string; text: string; gradient: string; solidBg: string; } } = {
   sky:    { bg: 'bg-project-sky/10', border: 'border-[var(--project-color-sky)]', text: 'text-[var(--project-color-sky)]', gradient: 'from-project-sky/20', solidBg: 'bg-[var(--project-color-sky)]' },
@@ -77,7 +78,7 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({
         <div className="mt-4">
           <div className="flex justify-between items-center text-[10px] font-bold text-[var(--text-muted)] mb-1.5">
             <span>پیشرفت پروژه</span>
-            <span className="font-semibold text-[var(--text-main)] font-mono">{stats.progress}%</span>
+            <span className="font-semibold text-[var(--text-main)] font-mono">{toPersianDigits(stats.progress)}%</span>
           </div>
           <div className="w-full bg-[var(--bg-card)] rounded-full h-1.5 overflow-hidden">
             <div 
@@ -87,7 +88,7 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({
           </div>
           <div className="flex items-center gap-2 text-[10px] font-bold text-[var(--text-muted)] mt-3">
             <ListChecksIcon className="w-3.5 h-3.5 text-[var(--text-muted)]" />
-            <span>{stats.activeTasks > 0 ? `${stats.activeTasks} کار باقی مانده` : 'تمام کارها تکمیل شده است'}</span>
+            <span>{stats.activeTasks > 0 ? `${toPersianDigits(stats.activeTasks)} کار باقی مانده` : 'تمام کارها تکمیل شده است'}</span>
           </div>
         </div>
       </div>

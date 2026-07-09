@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { useData } from '../../../contexts/DataContext';
-import { isSameTehranDay, getTehranDateString, compareTehranDates } from '../../../utils/dateUtils';
+import { isSameTehranDay, getTehranDateString, compareTehranDates, getTehranNow } from '../../../utils/dateUtils';
 import { Priority } from '../../../types';
 import { CheckIcon, ListChecksIcon } from '../../../components/icons';
 
@@ -68,7 +68,7 @@ export const TodaysPlan: React.FC<TodaysPlanProps> = ({ onOpenOverdueModal }) =>
   const { tasks, selectedDate, toggleTaskCompletion } = useData();
 
   const overdueCount = useMemo(() => {
-    const todayStr = getTehranDateString(new Date());
+    const todayStr = getTehranDateString(getTehranNow());
     return tasks.filter(t => 
       t.status !== 'done' && 
       t.due_date && 

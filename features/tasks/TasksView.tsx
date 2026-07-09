@@ -8,6 +8,7 @@ import {
 import { TaskCard } from './components/TaskCard';
 import { TaskEditorModal } from './components/TaskEditorModal';
 import { groupTasks } from '../../utils/taskGrouping';
+import { toPersianDigits } from '../../utils/persianNumbers';
 
 const CollapsibleSection: React.FC<{ title: string; count: number; children: React.ReactNode }> = ({ title, count, children }) => {
   const [isCollapsed, setIsCollapsed] = useState(true);
@@ -19,7 +20,7 @@ const CollapsibleSection: React.FC<{ title: string; count: number; children: Rea
         onClick={() => setIsCollapsed(!isCollapsed)} 
         className="w-full flex justify-between items-center px-1 py-2.5 text-xs font-bold text-[var(--text-muted)] hover:text-[var(--text-main)] transition-colors"
       >
-        <span>{title} ({count})</span>
+        <span>{title} ({toPersianDigits(count)})</span>
         <ChevronDownIcon className={`w-4 h-4 transition-transform duration-300 ${isCollapsed ? '' : 'rotate-180'}`} />
       </button>
       {!isCollapsed && (
@@ -93,12 +94,7 @@ export const TasksView: React.FC = () => {
     localStorage.setItem('expanded_projects_state', JSON.stringify(expandedProjects));
   }, [expandedProjects]);
 
-  const currentEditingTask = useMemo(() => {
-    if (!editingTask || !('id' in editingTask)) return editingTask;
-    return tasks.find(t => t.id === editingTask.id) || editingTask;
-  }, [editingTask, tasks]);
-
-  const handleSaveTask = async (taskToSave: Task | Partial<Task>, keepOpen?: boolean) => {
+  const handleSaveTask = (taskToSave: Task | Partial<Task>, keepOpen = false) => {
     if (!taskToSave.title?.trim()) {
       setEditingTask(null);
       return;
@@ -106,6 +102,9 @@ export const TasksView: React.FC = () => {
 
     if ('id' in taskToSave && taskToSave.id) {
       updateTask(taskToSave);
+      if (keepOpen) {
+        setEditingTask(taskToSave);
+      }
     } else {
       const { title, description, due_date, priority, tags, project_id, checklist } = taskToSave as Partial<Task>;
       addTask({ 
@@ -341,7 +340,7 @@ export const TasksView: React.FC = () => {
       
       {editingTask && (
         <TaskEditorModal
-          task={currentEditingTask}
+          task={editingTask}
           projects={projects}
           notes={notes}
           isOpen={!!editingTask}
